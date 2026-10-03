@@ -12,7 +12,7 @@ export default function SyncBanner({ errors, configured }: { errors: SheetSyncSt
 
   if (!configured) {
     return (
-      <div className="border-b border-line bg-[#f3ece2] px-4 py-1.5 text-center text-sm text-muted">
+      <div className="border-b border-line bg-[#e9f0f9] px-4 py-1.5 text-center text-sm text-muted">
         Google 스프레드시트 연동이 아직 설정되지 않았습니다 (README 5단계). 예약 기능은 정상 동작합니다.
       </div>
     );

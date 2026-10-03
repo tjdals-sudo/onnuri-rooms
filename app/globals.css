@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fbf7f0;      /* 따뜻한 크림 */
+  --background: #eef4fb;      /* 연한 파랑 */
   --surface: #ffffff;
   --foreground: #2b2520;
   --muted: #6b625a;
-  --line: #e7dfd3;
-  --accent: #b5542d;          /* 따뜻한 테라코타 */
-  --accent-soft: #f7e6dc;
+  --line: #d6e0ee;
+  --accent: #1f3a6e;          /* 남색 */
+  --accent-soft: #e3ecf8;
   --danger: #b42318;
   --ok: #1f7a4d;
 }
@@ -47,7 +47,7 @@ body {
   @apply inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-line bg-surface px-3 py-2 text-base font-medium text-foreground shadow-sm transition hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-50;
 }
 .btn-primary {
-  @apply border-accent bg-accent text-white hover:bg-[#9a4523];
+  @apply border-accent bg-accent text-white hover:bg-[#162c55];
 }
 .btn-danger {
   @apply border-danger bg-danger text-white hover:bg-[#8f1b12];
@@ -74,7 +74,7 @@ body {
   @apply w-full border-collapse text-base;
 }
 .table th {
-  @apply border-b border-line bg-[#f3ece2] px-3 py-2 text-left text-sm font-semibold text-muted;
+  @apply border-b border-line bg-[#e9f0f9] px-3 py-2 text-left text-sm font-semibold text-muted;
 }
 .table td {
   @apply border-b border-line px-3 py-2 align-top;
@@ -82,7 +82,7 @@ body {
 
 /* 스켈레톤 */
 .skeleton {
-  @apply animate-pulse rounded-md bg-[#efe7db];
+  @apply animate-pulse rounded-md bg-[#dde6f2];
 }
 
 /* 모바일 터치 영역 */

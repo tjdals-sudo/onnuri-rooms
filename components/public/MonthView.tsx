@@ -33,7 +33,7 @@ export default function MonthView({
 
   return (
     <div className="card overflow-hidden">
-      <div className="grid grid-cols-7 border-b border-line bg-[#f3ece2] text-center text-sm font-semibold text-muted">
+      <div className="grid grid-cols-7 border-b border-line bg-[#e9f0f9] text-center text-sm font-semibold text-muted">
         {WEEKDAYS.map((w, i) => (
           <div key={w} className={`py-2 ${i === 5 ? "text-[#2c6fb0]" : i === 6 ? "text-[#b42318]" : ""}`}>
             {w}
@@ -42,7 +42,7 @@ export default function MonthView({
       </div>
       <div className="grid grid-cols-7">
         {cells.map((d, i) => {
-          if (!d) return <div key={`e${i}`} className="min-h-[88px] border-b border-r border-line/60 bg-[#faf6ef]" />;
+          if (!d) return <div key={`e${i}`} className="min-h-[88px] border-b border-r border-line/60 bg-[#f4f8fc]" />;
           const items = (byDay.get(d) ?? []).sort((a, b) => a.start_at.localeCompare(b.start_at));
           const isToday = d === today;
           const dow = i % 7;
