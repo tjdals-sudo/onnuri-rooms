@@ -5,8 +5,13 @@ project_id = "kpwxddwxlfujfjizwfwd"
 [auth]
 # 신규 가입 차단 (관리자 3계정은 service role 로 생성)
 enable_signup = false
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["http://localhost:3000/admin", "http://localhost:3000/admin/login"]
+site_url = "https://onnuri-rooms.vercel.app"
+additional_redirect_urls = [
+  "https://onnuri-rooms.vercel.app/admin",
+  "https://onnuri-rooms.vercel.app/admin/login",
+  "http://localhost:3000/admin",
+  "http://localhost:3000/admin/login"
+]
 
 [auth.email]
 # 이메일(아이디+비밀번호) 로그인 제공자 — false 로 두면 로그인 자체가 막힘

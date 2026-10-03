@@ -103,6 +103,9 @@ npm run dev
 
 ### 6. Vercel 배포
 
+> 현재 운영 주소: **https://onnuri-rooms.vercel.app** (Vercel 프로젝트 `onnuri-rooms`, 계정 tjdals-sudo). 아래는 처음부터 다시 배포할 때의 안내입니다.
+
+
 1. 이 저장소를 본인 GitHub 에 올립니다(이미 올라가 있다면 생략).
 2. https://vercel.com → **Add New → Project** → GitHub 저장소 import (Framework: Next.js 자동 인식)
 3. **Environment Variables** 에 `.env.local` 의 값을 모두 입력 (`TEST_*` 는 제외해도 됨)
