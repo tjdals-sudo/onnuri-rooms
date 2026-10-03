@@ -57,8 +57,10 @@ supabase config push                # 공개 회원가입 차단 등 인증 설�
 | `SUPABASE_SECRET_KEY` | 서버 전용 비밀 키 (시트 동기화 상태 기록, Cron, 관리자 생성 스크립트) |
 | `ADMIN_ID_DOMAIN` | 아이디 → 내부 이메일 변환용 도메인. 기본 `onnuri-incheon.local` |
 | `ADMIN1_PASSWORD` ~ `ADMIN3_PASSWORD` | 관리자 초기 비밀번호 (8자 이상). 계정 생성 때 1회 사용 |
-| `GOOGLE_SHEET_ID` | 스프레드시트 URL 의 `/d/` 와 `/edit` 사이 문자열 |
-| `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64` | 서비스 계정 키 JSON 을 base64 로 인코딩한 값 (5단계) |
+| `GOOGLE_APPS_SCRIPT_URL` | (5-A) Apps Script 웹 앱 URL |
+| `GOOGLE_APPS_SCRIPT_SECRET` | (5-A) `Code.gs` 의 SECRET 과 같은 값 |
+| `GOOGLE_SHEET_ID` | (5-B) 스프레드시트 URL 의 `/d/` 와 `/edit` 사이 문자열 |
+| `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64` | (5-B) 서비스 계정 키 JSON 을 base64 로 인코딩한 값 |
 | `CRON_SECRET` | Vercel Cron 호출 보호용 아무 긴 문자열 |
 | `TEST_ADMIN_LOGIN_ID`, `TEST_ADMIN_PASSWORD` | 통합 테스트용 (선택) |
 
@@ -85,6 +87,28 @@ npm run dev
 
 ### 5. Google 스프레드시트 연동 (개인 구글 계정 권장)
 
+두 가지 방식 중 **하나만** 설정하면 됩니다. 둘 다 있으면 Apps Script 를 씁니다.
+
+#### 5-A. Apps Script 방식 (쉬움, 추천)
+
+Google Cloud 콘솔 없이 스프레드시트 안에서 끝납니다.
+
+1. 구글 드라이브에서 **새 스프레드시트** 를 만듭니다(이름 예: `장소 예약 현황`).
+2. 메뉴 **확장 프로그램 → Apps Script** 를 엽니다.
+3. 편집기에 있는 내용을 모두 지우고, 이 저장소의 `google-apps-script/Code.gs` 내용을 통째로 붙여 넣습니다.
+   맨 위 `var SECRET = "..."` 값은 서버의 `GOOGLE_APPS_SCRIPT_SECRET` 과 같아야 합니다.
+4. 저장(⌘S) → 오른쪽 위 **배포 → 새 배포** → 유형 선택(톱니바퀴)에서 **웹 앱**
+   - 다음 사용자 인증 정보로 실행: **나**
+   - 액세스 권한이 있는 사용자: **모든 사용자**
+5. **배포** → 처음 한 번 권한 허용(「고급 → (프로젝트 이름)(으)로 이동」을 눌러야 할 수 있음)
+6. 표시된 **웹 앱 URL**(`https://script.google.com/macros/s/…/exec`)을 복사해 `GOOGLE_APPS_SCRIPT_URL` 에 넣습니다.
+7. 브라우저로 그 URL 을 열어 `{"ok":true,...}` 가 보이면 준비 완료. 관리자 화면 배너의 **시트 다시 동기화** 를 누릅니다.
+
+코드를 고친 뒤에는 **배포 → 배포 관리 → 연필 아이콘 → 버전: 새 버전 → 배포** 를 해야 반영됩니다(URL 은 그대로).
+
+#### 5-B. 서비스 계정 방식 (Google Cloud 콘솔 사용)
+
+
 1. https://console.cloud.google.com → 새 프로젝트(예: `onnuri-rooms`)
 2. **API 및 서비스 → 라이브러리** 에서 **Google Sheets API** 사용 설정
 3. **API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → 서비스 계정** 생성 (역할은 없어도 됨)
@@ -99,7 +123,7 @@ npm run dev
 7. 스프레드시트 URL 의 ID 를 `GOOGLE_SHEET_ID` 에 입력
 8. 관리자 화면 상단 배너의 **시트 다시 동기화** 를 누르면 `YYYY-MM` 월 탭과 `변경이력` 탭이 만들어집니다.
 
-동작 방식: 예약·장소가 바뀔 때마다 영향받은 월 탭 전체를 DB 기준으로 다시 씁니다(헤더 고정, 층별 행 색). 실패하면 관리자 화면에 빨간 배너가 뜨고, 매일 새벽 5시 Cron 이 이번 달을 다시 동기화합니다. 환경변수를 비워 두면 시트 연동만 건너뛰고 나머지는 정상 동작합니다.
+동작 방식(두 방식 공통): 예약·장소가 바뀔 때마다 영향받은 월 탭 전체를 DB 기준으로 다시 씁니다(헤더 고정, 층별 행 색). 실패하면 관리자 화면에 빨간 배너가 뜨고, 매일 새벽 5시 Cron 이 이번 달을 다시 동기화합니다. 환경변수를 비워 두면 시트 연동만 건너뛰고 나머지는 정상 동작합니다.
 
 ### 6. Vercel 배포
 
@@ -150,7 +174,8 @@ npm run test:db     # 통합 테스트 (원격 Supabase, .env.local 의 TEST_ADM
 app/                 페이지 (홈, admin/login, admin/(protected)/{예약,rooms,history,access,account}, api/{export,keepalive})
 components/public/   일/주/월 뷰, 모바일 카드, 빈 장소 패널
 components/admin/    예약 관리(달력·장소·슬롯·폼·목록), 장소 관리, 내비, 시트 배너
-lib/                 time(서울 시간 유틸), sheets(구글 시트), excel, audit-format, actions/(서버 액션), supabase/
+lib/                 time(서울 시간 유틸), sheets(구글 시트: Apps Script/서비스 계정), excel, audit-format, actions/(서버 액션), supabase/
+google-apps-script/  스프레드시트에 붙여 넣는 Code.gs
 supabase/migrations/ DB 스키마 (테이블·제약·트리거·RLS·seed)
 scripts/             create-admins.ts
 tests/               vitest

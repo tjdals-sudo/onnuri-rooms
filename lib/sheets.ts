@@ -17,8 +17,57 @@ export interface SyncResult {
 
 const AUDIT_TAB = "변경이력";
 
+/** 어느 방식이 설정돼 있는지: Apps Script 웹 앱이 우선, 없으면 서비스 계정 */
+export function sheetsMode(): "apps-script" | "service-account" | null {
+  if (process.env.GOOGLE_APPS_SCRIPT_URL && process.env.GOOGLE_APPS_SCRIPT_SECRET) return "apps-script";
+  if (process.env.GOOGLE_SHEET_ID && process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64) return "service-account";
+  return null;
+}
+
 export function isSheetsConfigured(): boolean {
-  return Boolean(process.env.GOOGLE_SHEET_ID && process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64);
+  return sheetsMode() !== null;
+}
+
+interface TabPayload {
+  title: string;
+  headers: readonly string[];
+  rows: string[][];
+  /** 행별 배경색 hex (예: "#dff1e5") */
+  rowColors?: string[];
+}
+
+function hexToRgb(hex: string): { red: number; green: number; blue: number } {
+  const h = hex.replace("#", "");
+  return { red: parseInt(h.slice(0, 2), 16) / 255, green: parseInt(h.slice(2, 4), 16) / 255, blue: parseInt(h.slice(4, 6), 16) / 255 };
+}
+
+/** Apps Script 웹 앱에 탭 데이터를 POST (스크립트가 탭을 통째로 다시 씀) */
+async function postToAppsScript(tabs: TabPayload[]): Promise<void> {
+  const res = await fetch(process.env.GOOGLE_APPS_SCRIPT_URL!, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ secret: process.env.GOOGLE_APPS_SCRIPT_SECRET, tabs }),
+    redirect: "follow",
+    signal: AbortSignal.timeout(120_000),
+  });
+  const text = await res.text();
+  let parsed: { ok?: boolean; error?: string } = {};
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error(`Apps Script 응답을 해석할 수 없습니다 (HTTP ${res.status}). 웹 앱 배포의 "액세스 권한"이 "모든 사용자"인지 확인하세요.`);
+  }
+  if (!res.ok || !parsed.ok) throw new Error(parsed.error || `Apps Script 오류 (HTTP ${res.status})`);
+}
+
+/** 방식에 따라 탭 하나를 다시 쓴다 */
+async function writeTabAny(tab: TabPayload): Promise<void> {
+  if (sheetsMode() === "apps-script") {
+    await postToAppsScript([tab]);
+    return;
+  }
+  const sheets = getSheetsClient();
+  await writeTab(sheets, process.env.GOOGLE_SHEET_ID!, tab.title, tab.headers, tab.rows, tab.rowColors?.map(hexToRgb));
 }
 
 function getSheetsClient(): sheets_v4.Sheets {
@@ -50,7 +99,7 @@ async function writeTab(
   title: string,
   headers: readonly string[],
   rows: string[][],
-  rowColors?: { r: number; g: number; b: number }[],
+  rowColors?: { red: number; green: number; blue: number }[],
 ) {
   const sheetId = await ensureTab(sheets, spreadsheetId, title);
   await sheets.spreadsheets.values.clear({ spreadsheetId, range: `'${title}'` });
@@ -87,11 +136,11 @@ async function writeTab(
     let i = 0;
     while (i < rowColors.length) {
       let j = i;
-      while (j + 1 < rowColors.length && rowColors[j + 1] === rowColors[i]) j++;
+      while (j + 1 < rowColors.length && rowColors[j + 1].red === rowColors[i].red && rowColors[j + 1].green === rowColors[i].green && rowColors[j + 1].blue === rowColors[i].blue) j++;
       requests.push({
         repeatCell: {
           range: { sheetId, startRowIndex: i + 1, endRowIndex: j + 2, startColumnIndex: 0, endColumnIndex: headers.length },
-          cell: { userEnteredFormat: { backgroundColor: { red: rowColors[i].r, green: rowColors[i].g, blue: rowColors[i].b } } },
+          cell: { userEnteredFormat: { backgroundColor: rowColors[i] } },
           fields: "userEnteredFormat.backgroundColor",
         },
       });
@@ -113,21 +162,17 @@ async function recordStatus(target: string, ok: boolean, error?: string) {
 /** 월 탭들을 DB 기준으로 다시 쓴다 */
 export async function syncMonths(months: string[]): Promise<SyncResult[]> {
   if (!isSheetsConfigured()) return months.map((m) => ({ target: m, ok: true }));
-  const spreadsheetId = process.env.GOOGLE_SHEET_ID!;
   const results: SyncResult[] = [];
-  let sheets: sheets_v4.Sheets;
-  try {
-    sheets = getSheetsClient();
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    for (const m of months) await recordStatus(m, false, `서비스 계정 키 오류: ${msg}`);
-    return months.map((m) => ({ target: m, ok: false, error: msg }));
-  }
   const sb = getServiceSupabase();
   for (const month of months) {
     try {
       const rows = await fetchMonthRows(sb, month);
-      await writeTab(sheets, spreadsheetId, month, SHEET_HEADERS, rows.map((r) => r.values), rows.map((r) => FLOOR_COLORS[r.floor].sheet));
+      await writeTabAny({
+        title: month,
+        headers: SHEET_HEADERS,
+        rows: rows.map((r) => r.values),
+        rowColors: rows.map((r) => FLOOR_COLORS[r.floor].soft),
+      });
       await recordStatus(month, true);
       results.push({ target: month, ok: true });
     } catch (e) {
@@ -144,9 +189,8 @@ export async function syncMonths(months: string[]): Promise<SyncResult[]> {
 export async function syncAuditTab(): Promise<SyncResult> {
   if (!isSheetsConfigured()) return { target: AUDIT_TAB, ok: true };
   try {
-    const sheets = getSheetsClient();
     const rows = await fetchAuditRows(getServiceSupabase());
-    await writeTab(sheets, process.env.GOOGLE_SHEET_ID!, AUDIT_TAB, AUDIT_HEADERS, rows);
+    await writeTabAny({ title: AUDIT_TAB, headers: AUDIT_HEADERS, rows });
     await recordStatus("audit", true);
     return { target: AUDIT_TAB, ok: true };
   } catch (e) {
