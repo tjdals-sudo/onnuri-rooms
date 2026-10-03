@@ -137,7 +137,7 @@ Google Cloud 콘솔 없이 스프레드시트 안에서 끝납니다.
 5. Supabase 대시보드 **Authentication → URL Configuration** 의 Site URL 을 배포 주소로 바꾸거나, `supabase/config.toml` 의 `site_url` 을 수정하고 `supabase config push`
 6. `vercel.json` 의 Cron(`/api/keepalive`, 매일 UTC 20:00 = KST 05:00)은 자동 등록됩니다. Supabase 무료 프로젝트는 7일간 요청이 없으면 일시정지되는데, 이 Cron 이 매일 DB 를 깨워 둡니다.
 
-이후에는 `main` 브랜치에 push 할 때마다 자동 배포됩니다.
+이후에는 `main` 브랜치에 push 할 때마다 자동 배포됩니다. (2026-10-03 GitHub 연동 완료)
 
 ---
 
