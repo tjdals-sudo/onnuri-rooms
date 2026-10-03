@@ -154,7 +154,7 @@ export default function DayGrid({
               style={{ left: LABEL_W + nowMin * PX_PER_MIN }}
               aria-hidden
             >
-              <span className="absolute -left-5 top-9 rounded bg-[#d93025] px-1 text-[11px] font-bold text-white">
+              <span className="absolute -left-5 top-9 whitespace-nowrap rounded bg-[#d93025] px-1 text-[11px] font-bold text-white">
                 지금
               </span>
             </div>
