@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -120,7 +121,7 @@ export default function HomeClient() {
       <header className="sticky top-0 z-30 border-b border-line bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
-            <span className="text-2xl" aria-hidden>⛪</span>
+            <Image src="/logo.jpg" alt="온누리교회" width={40} height={40} className="h-10 w-10 rounded-lg" priority />
             <div>
               <h1 className="text-lg font-bold leading-tight md:text-xl">인천 온누리교회 장소 사용 현황</h1>
               <p className="hidden text-sm text-muted md:block">누구나 실시간으로 확인할 수 있어요</p>

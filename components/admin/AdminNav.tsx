@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/actions/auth";
@@ -17,7 +18,7 @@ export default function AdminNav({ loginId }: { loginId: string }) {
     <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
       <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
         <Link href="/" className="flex items-center gap-2 font-bold">
-          <span aria-hidden>⛪</span>
+          <Image src="/logo.jpg" alt="온누리교회" width={32} height={32} className="h-8 w-8 rounded-md" priority />
           <span className="hidden sm:inline">장소 사용 현황</span>
           <span className="rounded bg-accent-soft px-1.5 py-0.5 text-xs font-semibold text-accent">관리자</span>
         </Link>
