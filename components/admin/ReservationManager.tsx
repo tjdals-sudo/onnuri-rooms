@@ -93,7 +93,7 @@ export default function ReservationManager({
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-4">
           <AdminCalendar monthKey={monthKey} counts={counts} selected={dateKey} onSelect={selectDate} onMonthChange={gotoMonth} />
           <div className="card p-3">
