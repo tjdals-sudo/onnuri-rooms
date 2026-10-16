@@ -21,6 +21,7 @@ import MobileDayList from "./MobileDayList";
 import WeekView from "./WeekView";
 import MonthView from "./MonthView";
 import FreeNowPanel from "./FreeNowPanel";
+import AskPanel from "./AskPanel";
 
 type View = "day" | "week" | "month";
 
@@ -215,6 +216,7 @@ export default function HomeClient() {
           </div>
         ) : (
           <>
+            <AskPanel rooms={rooms ?? []} onShowDate={(d) => setParam({ view: null, date: d })} />
             {view === "day" && isToday && (
               <FreeNowPanel rooms={filteredRooms} reservations={filteredReservations} now={now} />
             )}
@@ -254,7 +256,7 @@ export default function HomeClient() {
       </main>
 
       <footer className="border-t border-line px-4 py-4 text-center text-sm text-muted">
-        인천 온누리교회 · 예약 문의는 각 부서 담당자에게 연락해 주세요
+        인천 온누리교회 · 장소예약 v1.0.0
       </footer>
     </div>
   );
