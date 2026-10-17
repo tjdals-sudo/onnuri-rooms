@@ -299,11 +299,15 @@ export default function HomeClient() {
                         </span>
                       )}
                     </div>
-                    <p className="text-right text-xs text-muted">
-                      최신 현황: onnuri-rooms.vercel.app
-                      <br />
-                      {fmtDateKeyKo(todayKey(now))} 출력
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-right text-xs leading-snug text-muted">
+                        인천온누리교회
+                        <br />
+                        장소 예약 현황
+                      </p>
+                      {/* public/qr.svg = https://onnuri-rooms.vercel.app (주소가 바뀌면 다시 만들 것) */}
+                      <Image src="/qr.svg" alt="" width={56} height={56} className="h-14 w-14" unoptimized />
+                    </div>
                   </div>
                   <MonthView
                     monthKey={dateKey.slice(0, 7)}
