@@ -68,12 +68,13 @@ export function daysOfMonth(monthKey: string): string[] {
   return Array.from({ length: count }, (_, i) => `${monthKey}-${String(i + 1).padStart(2, "0")}`);
 }
 
-/** 해당 날짜가 속한 주(월요일 시작)의 날짜 키 7개 */
-export function weekOf(dateKey: string): string[] {
+/** 해당 날짜가 속한 주의 날짜 키 7개. 달력 화면은 일요일 시작("sun"), '물어보기'의 '이번 주'는 월요일 시작 */
+export function weekOf(dateKey: string, startsOn: "mon" | "sun" = "mon"): string[] {
   const d = fromZonedTime(`${dateKey}T12:00:00`, TZ);
-  const dow = (toZonedTime(d, TZ).getDay() + 6) % 7; // 월=0
-  const monday = addDaysToKey(dateKey, -dow);
-  return Array.from({ length: 7 }, (_, i) => addDaysToKey(monday, i));
+  const day = toZonedTime(d, TZ).getDay(); // 일=0
+  const dow = startsOn === "sun" ? day : (day + 6) % 7;
+  const first = addDaysToKey(dateKey, -dow);
+  return Array.from({ length: 7 }, (_, i) => addDaysToKey(first, i));
 }
 
 /** 'HH:mm' (서울) */

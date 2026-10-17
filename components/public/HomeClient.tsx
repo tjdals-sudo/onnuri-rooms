@@ -22,6 +22,7 @@ import WeekView from "./WeekView";
 import MonthView from "./MonthView";
 import FreeNowPanel from "./FreeNowPanel";
 import AskPanel from "./AskPanel";
+import { fitPrintArea } from "@/lib/print-fit";
 
 type View = "day" | "week" | "month";
 
@@ -55,7 +56,7 @@ export default function HomeClient() {
   const range = useMemo(() => {
     if (view === "day") return dayRange(dateKey);
     if (view === "week") {
-      const days = weekOf(dateKey);
+      const days = weekOf(dateKey, "sun");
       return { start: dayRange(days[0]).start, end: dayRange(days[6]).end };
     }
     return monthRange(dateKey.slice(0, 7));
@@ -88,18 +89,43 @@ export default function HomeClient() {
     return () => clearInterval(t);
   }, []);
 
-  // 필터 적용
-  const filteredRooms = useMemo(() => {
-    if (!rooms) return [];
-    const q = query.trim();
-    return rooms.filter((r) => (!floor || r.floor === floor) && (!q || r.name.includes(q)));
-  }, [rooms, floor, query]);
+  // 필터 적용: 장소 이름이 맞으면 그 장소의 예약 전부(인쇄용), 맞는 장소가 없으면 행사명·부서가 맞는 예약만
+  const q = normalize(query);
+  const { filteredRooms, filteredReservations } = useMemo(() => {
+    const floorRooms = (rooms ?? []).filter((r) => !floor || r.floor === floor);
+    const all = reservations ?? [];
+    if (!q) {
+      const ids = new Set(floorRooms.map((r) => r.id));
+      return { filteredRooms: floorRooms, filteredReservations: all.filter((r) => ids.has(r.room_id)) };
+    }
+    const nameHit = new Set(floorRooms.filter((r) => normalize(r.name).includes(q)).map((r) => r.id));
+    const floorIds = new Set(floorRooms.map((r) => r.id));
+    const res = all.filter(
+      (r) =>
+        floorIds.has(r.room_id) &&
+        (nameHit.size > 0
+          ? nameHit.has(r.room_id)
+          : normalize(r.title).includes(q) || normalize(r.department).includes(q)),
+    );
+    const ids = new Set([...nameHit, ...res.map((r) => r.room_id)]);
+    return { filteredRooms: floorRooms.filter((r) => ids.has(r.id)), filteredReservations: res };
+  }, [rooms, reservations, floor, q]);
 
-  const roomIds = useMemo(() => new Set(filteredRooms.map((r) => r.id)), [filteredRooms]);
-  const filteredReservations = useMemo(
-    () => (reservations ?? []).filter((r) => roomIds.has(r.room_id)),
-    [reservations, roomIds],
-  );
+  const singleRoom = filteredRooms.length === 1 ? filteredRooms[0] : null;
+
+  // 브라우저 메뉴로 인쇄해도 한 장에 맞도록
+  useEffect(() => {
+    window.addEventListener("beforeprint", fitPrintArea);
+    return () => window.removeEventListener("beforeprint", fitPrintArea);
+  }, []);
+
+  // 인쇄: PDF 로 저장할 때 파일 이름이 되도록 제목을 잠시 바꾼다
+  const print = () => {
+    const prev = document.title;
+    document.title = `${singleRoom ? `${singleRoom.name} ` : ""}${fmtMonthKo(dateKey.slice(0, 7))} 예약 현황`;
+    window.print();
+    document.title = prev;
+  };
 
   const isToday = dateKey === todayKey(now);
   const loading = rooms === null || reservations === null;
@@ -114,12 +140,12 @@ export default function HomeClient() {
     view === "month"
       ? fmtMonthKo(dateKey.slice(0, 7))
       : view === "week"
-        ? `${fmtDateKeyKo(weekOf(dateKey)[0])} ~ ${fmtDateKeyKo(weekOf(dateKey)[6]).replace(/^\d+년 /, "")}`
+        ? `${fmtDateKeyKo(weekOf(dateKey, "sun")[0])} ~ ${fmtDateKeyKo(weekOf(dateKey, "sun")[6]).replace(/^\d+년 /, "")}`
         : fmtDateKeyKo(dateKey);
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-30 border-b border-line bg-background/95 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-line bg-background/95 backdrop-blur print:hidden">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
             <Image src="/logo.jpg" alt="온누리교회" width={40} height={40} className="h-10 w-10 rounded-lg" priority />
@@ -187,16 +213,16 @@ export default function HomeClient() {
             <input
               type="search"
               className="input ml-auto w-full md:w-56"
-              placeholder="장소 검색 (예: 소망홀)"
+              placeholder="장소·행사명 검색 (예: 소망홀)"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              aria-label="장소 검색"
+              aria-label="장소·행사명 검색"
             />
           </div>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-4">
+      <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-4 print:max-w-none print:p-0">
         {error && (
           <div className="card mb-4 border-danger/40 bg-red-50 p-4 text-danger">
             <p className="font-semibold">불러오지 못했습니다</p>
@@ -216,7 +242,9 @@ export default function HomeClient() {
           </div>
         ) : (
           <>
-            <AskPanel rooms={rooms ?? []} onShowDate={(d) => setParam({ view: null, date: d })} />
+            <div className="print:hidden">
+              <AskPanel rooms={rooms ?? []} onShowDate={(d) => setParam({ view: null, date: d })} />
+            </div>
             {view === "day" && isToday && (
               <FreeNowPanel rooms={filteredRooms} reservations={filteredReservations} now={now} />
             )}
@@ -238,26 +266,67 @@ export default function HomeClient() {
             )}
             {view === "week" && (
               <WeekView
-                days={weekOf(dateKey)}
+                days={weekOf(dateKey, "sun")}
                 reservations={filteredReservations}
                 now={now}
                 onSelectDay={(d) => setParam({ view: null, date: d })}
               />
             )}
             {view === "month" && (
-              <MonthView
-                monthKey={dateKey.slice(0, 7)}
-                reservations={filteredReservations}
-                onSelectDay={(d) => setParam({ view: null, date: d })}
-              />
+              <>
+                {singleRoom && (
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 print:hidden">
+                    <p className="text-base">
+                      <strong>{singleRoom.name}</strong> {fmtMonthKo(dateKey.slice(0, 7))} 예약을 모두 보여 드려요.
+                    </p>
+                    <button className="btn" onClick={print}>
+                      🖨 A4로 인쇄
+                    </button>
+                  </div>
+                )}
+                <div id="print-area">
+                  {/* 인쇄용 머리말 (화면에서는 숨김) */}
+                  <div className="mb-2 hidden items-end justify-between print:flex">
+                    <div className="flex items-center gap-2">
+                      <Image src="/logo.jpg" alt="" width={36} height={36} className="h-9 w-9 rounded-md" />
+                      <h1 className="text-2xl font-bold">
+                        {singleRoom ? `${singleRoom.name} ` : ""}
+                        {fmtMonthKo(dateKey.slice(0, 7))} 예약 현황
+                      </h1>
+                      {singleRoom && (
+                        <span className="text-sm text-muted">
+                          {FLOOR_SHORT[singleRoom.floor]} · {singleRoom.capacity_text} · {singleRoom.seating_type}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-right text-xs text-muted">
+                      최신 현황: onnuri-rooms.vercel.app
+                      <br />
+                      {fmtDateKeyKo(todayKey(now))} 출력
+                    </p>
+                  </div>
+                  <MonthView
+                    monthKey={dateKey.slice(0, 7)}
+                    reservations={filteredReservations}
+                    showAll={Boolean(singleRoom) || q !== ""}
+                    singleRoom={Boolean(singleRoom)}
+                    onSelectDay={(d) => setParam({ view: null, date: d })}
+                  />
+                </div>
+              </>
             )}
           </>
         )}
       </main>
 
-      <footer className="border-t border-line px-4 py-4 text-center text-sm text-muted">
-        인천 온누리교회 · 장소예약 v1.0.0
+      <footer className="border-t border-line px-4 py-4 text-center text-sm text-muted print:hidden">
+        인천 온누리교회 · 장소예약 v1.0.1
       </footer>
     </div>
   );
+}
+
+/** 검색 비교용: 띄어쓰기·대소문자 무시 ("워십 연습" = "워십연습") */
+function normalize(s: string): string {
+  return s.replace(/\s+/g, "").toLowerCase();
 }

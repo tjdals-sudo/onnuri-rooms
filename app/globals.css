@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* print: 스타일을 인쇄할 때와, 인쇄 직전 크기를 잴 때(lib/print-fit.ts) 모두 적용 */
+@custom-variant print {
+  @media print {
+    @slot;
+  }
+  &:where(.print-measure, .print-measure *) {
+    @slot;
+  }
+}
+
 :root {
   --background: #eef4fb;      /* 연한 파랑 */
   --surface: #ffffff;
@@ -88,4 +98,27 @@ body {
 /* 모바일 터치 영역 */
 @media (max-width: 767px) {
   .btn, .chip { min-height: 44px; }
+}
+
+/* 인쇄: 장소 앞에 붙이는 A4 가로 월간 현황표 */
+@page {
+  size: A4 landscape;
+  margin: 10mm;
+}
+html.print-measure {
+  font-size: 14px;
+}
+@media print {
+  html {
+    font-size: 14px;
+  }
+  #print-area {
+    zoom: var(--print-zoom, 1);
+    width: calc(277mm / var(--print-zoom, 1));
+  }
+  body {
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

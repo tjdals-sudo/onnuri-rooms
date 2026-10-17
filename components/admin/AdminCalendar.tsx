@@ -1,7 +1,7 @@
 "use client";
 import { daysOfMonth, fmtMonthKo, todayKey, weekOf } from "@/lib/time";
 
-const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 export default function AdminCalendar({
   monthKey,
@@ -17,7 +17,7 @@ export default function AdminCalendar({
   onMonthChange: (delta: number) => void;
 }) {
   const days = daysOfMonth(monthKey);
-  const leading = weekOf(days[0]).indexOf(days[0]);
+  const leading = weekOf(days[0], "sun").indexOf(days[0]);
   const cells: (string | null)[] = [...Array(leading).fill(null), ...days];
   while (cells.length % 7) cells.push(null);
   const today = todayKey();
@@ -30,8 +30,8 @@ export default function AdminCalendar({
         <button className="btn btn-sm" onClick={() => onMonthChange(1)} aria-label="다음 달">▶</button>
       </div>
       <div className="grid grid-cols-7 text-center text-xs font-semibold text-muted">
-        {WEEKDAYS.map((w) => (
-          <div key={w} className="py-1">{w}</div>
+        {WEEKDAYS.map((w, i) => (
+          <div key={w} className={`py-1 ${i === 0 ? "text-[#b42318]" : i === 6 ? "text-[#2c6fb0]" : ""}`}>{w}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-1">

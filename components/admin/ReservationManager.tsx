@@ -8,6 +8,7 @@ import RoomPicker from "./RoomPicker";
 import SlotPicker from "./SlotPicker";
 import ReservationForm, { type FormInitial } from "./ReservationForm";
 import ReservationTable from "./ReservationTable";
+import DeleteReservationDialog from "./DeleteReservationDialog";
 
 export default function ReservationManager({
   rooms,
@@ -29,6 +30,7 @@ export default function ReservationManager({
   const [roomId, setRoomId] = useState<string | null>(null);
   const [form, setForm] = useState<{ initial: FormInitial; editing: Reservation | null } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<Reservation | null>(null);
 
   // 서버에서 받은 initialDate 가 바뀌면(월 이동) 선택 날짜도 맞춘다 — 렌더 중 상태 조정 패턴
   const [prevInitial, setPrevInitial] = useState(initialDate);
@@ -65,6 +67,8 @@ export default function ReservationManager({
 
   const openNew = (startTime?: string, endTime?: string) =>
     setForm({ initial: { room_id: roomId ?? undefined, dateKey, startTime, endTime }, editing: null });
+
+  const openEdit = (r: Reservation) => setForm({ initial: { room_id: r.room_id, dateKey: toDateKey(r.start_at) }, editing: r });
 
   const saved = (msg: string) => {
     setForm(null);
@@ -106,7 +110,7 @@ export default function ReservationManager({
           <div className="card p-4">
             <h2 className="mb-1 text-lg font-bold">② 시간 선택 · {fmtDateKeyKo(dateKey)}</h2>
             {selectedRoom ? (
-              <SlotPicker key={`${selectedRoom.id}-${dateKey}`} room={selectedRoom} dateKey={dateKey} reservations={reservations} onPick={(s, e) => openNew(s, e)} />
+              <SlotPicker key={`${selectedRoom.id}-${dateKey}`} room={selectedRoom} dateKey={dateKey} reservations={reservations} onPick={(s, e) => openNew(s, e)} onEdit={openEdit} onDelete={setDeleting} />
             ) : (
               <p className="py-6 text-center text-muted">왼쪽에서 장소를 먼저 선택해 주세요. 이미 찬 시간은 선택할 수 없게 표시됩니다.</p>
             )}
@@ -117,7 +121,7 @@ export default function ReservationManager({
             reservations={reservations}
             admins={admins}
             monthKey={monthKey}
-            onEdit={(r) => setForm({ initial: { room_id: r.room_id, dateKey: toDateKey(r.start_at) }, editing: r })}
+            onEdit={openEdit}
             onChanged={(msg) => {
               setToast(msg);
               router.refresh();
@@ -133,6 +137,17 @@ export default function ReservationManager({
           editing={form.editing}
           onClose={() => setForm(null)}
           onSaved={saved}
+        />
+      )}
+      {deleting && (
+        <DeleteReservationDialog
+          reservation={deleting}
+          roomName={rooms.find((r) => r.id === deleting.room_id)?.name}
+          onClose={() => setDeleting(null)}
+          onDeleted={(msg) => {
+            setDeleting(null);
+            saved(msg);
+          }}
         />
       )}
     </div>

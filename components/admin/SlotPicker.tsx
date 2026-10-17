@@ -10,11 +10,15 @@ export default function SlotPicker({
   dateKey,
   reservations,
   onPick,
+  onEdit,
+  onDelete,
 }: {
   room: Room;
   dateKey: string;
   reservations: Reservation[];
   onPick: (startTime: string, endTime: string) => void;
+  onEdit: (r: Reservation) => void;
+  onDelete: (r: Reservation) => void;
 }) {
   const [start, setStart] = useState<number | null>(null);
   const [end, setEnd] = useState<number | null>(null);
@@ -88,9 +92,13 @@ export default function SlotPicker({
       {dayItems.length > 0 && (
         <ul className="mt-3 space-y-1 text-sm">
           {dayItems.map(({ r }) => (
-            <li key={r.id} className="flex gap-2 rounded px-2 py-1" style={{ background: c.soft, color: c.text }}>
-              <span className="font-semibold tabular-nums">{fmtRange(r.start_at, r.end_at)}</span>
-              <span className="truncate">{r.title}{r.department ? ` · ${r.department}` : ""}</span>
+            <li key={r.id} className="flex items-center gap-2 rounded px-2 py-1" style={{ background: c.soft, color: c.text }}>
+              <span className="shrink-0 font-semibold tabular-nums">{fmtRange(r.start_at, r.end_at)}</span>
+              <span className="min-w-0 truncate">{r.title}{r.department ? ` · ${r.department}` : ""}</span>
+              <span className="ml-auto flex shrink-0 gap-1">
+                <button className="btn btn-sm" onClick={() => onEdit(r)}>수정</button>
+                <button className="btn btn-sm btn-danger" onClick={() => onDelete(r)}>삭제</button>
+              </span>
             </li>
           ))}
         </ul>
