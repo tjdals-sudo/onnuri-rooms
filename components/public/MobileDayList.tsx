@@ -1,8 +1,9 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { FLOOR_COLORS } from "@/lib/floor-colors";
 import { clipToDay, fmtRange, isOngoing } from "@/lib/time";
 import { FLOORS, FLOOR_LABEL, type PublicReservation, type Room } from "@/lib/types";
+import ReservationPopover from "./ReservationPopover";
 
 /** 모바일: 층별 카드, 장소마다 그날 예약을 세로로 */
 export default function MobileDayList({
@@ -19,6 +20,7 @@ export default function MobileDayList({
   onSwipe: (delta: number) => void;
 }) {
   const touchX = useRef<number | null>(null);
+  const [picked, setPicked] = useState<{ r: PublicReservation; rect: DOMRect } | null>(null);
 
   if (rooms.length === 0) {
     return <div className="card p-6 text-center text-muted">조건에 맞는 장소가 없습니다.</div>;
@@ -64,23 +66,30 @@ export default function MobileDayList({
                         {items.map((r) => {
                           const ongoing = isOngoing(r.start_at, r.end_at, now);
                           return (
-                            <li
-                              key={r.id}
-                              className="flex flex-wrap items-center gap-x-2 rounded-lg border-l-4 px-3 py-2"
-                              style={{ borderColor: c.bg, background: c.soft }}
-                            >
-                              <span className="font-semibold tabular-nums" style={{ color: c.text }}>
-                                {fmtRange(r.start_at, r.end_at)}
-                              </span>
-                              {ongoing && (
-                                <span className="rounded bg-[#d93025] px-1.5 py-0.5 text-xs font-bold text-white">
-                                  사용 중
+                            <li key={r.id}>
+                              <button
+                                type="button"
+                                data-res-bar
+                                onClick={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setPicked((p) => (p?.r.id === r.id ? null : { r, rect }));
+                                }}
+                                className="flex w-full flex-wrap items-center gap-x-2 rounded-lg border-l-4 px-3 py-2 text-left"
+                                style={{ borderColor: c.bg, background: c.soft }}
+                              >
+                                <span className="font-semibold tabular-nums" style={{ color: c.text }}>
+                                  {fmtRange(r.start_at, r.end_at)}
                                 </span>
-                              )}
-                              <span className="w-full text-base">
-                                {r.title}
-                                {r.department && <span className="text-muted"> · {r.department}</span>}
-                              </span>
+                                {ongoing && (
+                                  <span className="rounded bg-[#d93025] px-1.5 py-0.5 text-xs font-bold text-white">
+                                    사용 중
+                                  </span>
+                                )}
+                                <span className="w-full text-base">
+                                  {r.title}
+                                  {r.department && <span className="text-muted"> · {r.department}</span>}
+                                </span>
+                              </button>
                             </li>
                           );
                         })}
@@ -93,6 +102,7 @@ export default function MobileDayList({
           </section>
         );
       })}
+      {picked && <ReservationPopover r={picked.r} rect={picked.rect} now={now} onClose={() => setPicked(null)} />}
     </div>
   );
 }
