@@ -7,6 +7,7 @@ import { logout } from "@/lib/actions/auth";
 const MENU = [
   { href: "/admin", label: "예약" },
   { href: "/admin/rooms", label: "장소 관리" },
+  { href: "/admin/stats", label: "사용 통계" },
   { href: "/admin/history", label: "변경 이력" },
   { href: "/admin/access", label: "접속 기록" },
   { href: "/admin/account", label: "내 계정" },

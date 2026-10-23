@@ -8,6 +8,9 @@
  *  3. "배포" → 권한 허용(처음 한 번) → 나온 "웹 앱 URL" 을 복사해서 전달
  *
  * 서버(Vercel)가 아래 SECRET 과 함께 JSON 을 POST 하면 해당 탭을 통째로 다시 씁니다.
+ * body.notify = { subject, text } 가 오면 이 스크립트 주인(스프레드시트를 만든 구글 계정)에게
+ * 메일을 보냅니다 (동기화 실패 알림. Gmail 무료 할당량 하루 100통 안에서만 사용).
+ * ※ 이 기능을 추가한 뒤에는 "배포 → 배포 관리 → 새 버전" 으로 다시 배포하고 메일 권한을 한 번 허용해야 합니다.
  * SECRET 은 서버 환경변수 GOOGLE_APPS_SCRIPT_SECRET 과 같아야 합니다.
  */
 var SECRET = "P2GWdotavKRd6TnIKPbLqulv9GHDBhdY";
@@ -17,6 +20,10 @@ function doPost(e) {
     var body = JSON.parse(e.postData.contents);
     if (!SECRET || body.secret !== SECRET) {
       return respond({ ok: false, error: "unauthorized" });
+    }
+    if (body.notify) {
+      MailApp.sendEmail(Session.getEffectiveUser().getEmail(), String(body.notify.subject || "장소 예약 알림"), String(body.notify.text || ""));
+      return respond({ ok: true, notified: true });
     }
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var written = [];

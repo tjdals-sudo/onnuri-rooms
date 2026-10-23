@@ -41,12 +41,12 @@ function hexToRgb(hex: string): { red: number; green: number; blue: number } {
   return { red: parseInt(h.slice(0, 2), 16) / 255, green: parseInt(h.slice(2, 4), 16) / 255, blue: parseInt(h.slice(4, 6), 16) / 255 };
 }
 
-/** Apps Script 웹 앱에 탭 데이터를 POST (스크립트가 탭을 통째로 다시 씀) */
-async function postToAppsScript(tabs: TabPayload[]): Promise<void> {
+/** Apps Script 웹 앱에 POST — tabs 면 탭을 통째로 다시 쓰고, notify 면 시트 주인에게 메일 */
+async function postToAppsScript(payload: { tabs: TabPayload[] } | { notify: { subject: string; text: string } }): Promise<void> {
   const res = await fetch(process.env.GOOGLE_APPS_SCRIPT_URL!, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ secret: process.env.GOOGLE_APPS_SCRIPT_SECRET, tabs }),
+    body: JSON.stringify({ secret: process.env.GOOGLE_APPS_SCRIPT_SECRET, ...payload }),
     redirect: "follow",
     signal: AbortSignal.timeout(120_000),
   });
@@ -63,7 +63,7 @@ async function postToAppsScript(tabs: TabPayload[]): Promise<void> {
 /** 방식에 따라 탭 하나를 다시 쓴다 */
 async function writeTabAny(tab: TabPayload): Promise<void> {
   if (sheetsMode() === "apps-script") {
-    await postToAppsScript([tab]);
+    await postToAppsScript({ tabs: [tab] });
     return;
   }
   const sheets = getSheetsClient();
@@ -150,10 +150,32 @@ async function writeTab(
   await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
 }
 
+const SITE_URL = "https://onnuri-rooms.vercel.app";
+
+/**
+ * 관리자 메일 알림 (무료: Apps Script MailApp 으로 시트 주인 계정에 보냄).
+ * Apps Script 방식일 때만 동작하고, 실패해도 예약·동기화에는 영향 없음.
+ */
+export async function notifyOwner(subject: string, text: string): Promise<boolean> {
+  if (sheetsMode() !== "apps-script") return false;
+  try {
+    await postToAppsScript({ notify: { subject: `[장소 예약] ${subject}`, text: `${text}\n\n관리자 화면: ${SITE_URL}/admin` } });
+    return true;
+  } catch (e) {
+    console.error("[notify] 알림 메일 실패:", e instanceof Error ? e.message : e);
+    return false;
+  }
+}
+
 async function recordStatus(target: string, ok: boolean, error?: string) {
   try {
     const sb = getServiceSupabase();
+    const { data: prev } = await sb.from("sheet_sync_status").select("status").eq("target", target).maybeSingle();
     await sb.from("sheet_sync_status").upsert({ target, status: ok ? "ok" : "error", error_message: error ?? "", synced_at: new Date().toISOString() });
+    // 정상 → 실패로 바뀔 때만 메일 (계속 실패 중이면 매일 새벽 Cron 이 한 번만 다시 알림)
+    if (!ok && prev?.status !== "error") {
+      await notifyOwner(`구글 시트 동기화 실패 (${target})`, `구글 스프레드시트 '${target}' 탭을 쓰지 못했습니다.\n\n오류: ${error ?? "알 수 없음"}\n\n관리자 화면 위쪽 빨간 배너의 '시트 다시 동기화'를 눌러 보세요. 예약 자체는 정상 저장되어 있습니다.`);
+    }
   } catch (e) {
     console.error("sheet_sync_status 기록 실패", e);
   }

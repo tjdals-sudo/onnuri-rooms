@@ -3,9 +3,9 @@
 교회 홀·방 사용 현황을 **누구나 실시간으로** 보고, **관리자(admin1, admin2, …)만** 예약을 등록·수정·삭제하는 웹입니다.
 
 - 홈 `/` : 일 / 주 / 월 보기, 층 필터, 장소 검색, "지금 비어 있는 장소", 실시간 반영
-- 관리자 `/admin` : 예약 등록(달력 → 장소 → 시간), 반복 예약, 장소 관리, 변경 이력, 접속 기록, 비밀번호 변경, 엑셀 다운로드
+- 관리자 `/admin` : 예약 등록(달력 → 장소 → 시간), 반복 예약, 예약 복사, 여러 장소 한꺼번에 예약, 겹칠 때 빈 장소 추천, 장소 관리, 사용 통계, 변경 이력, 접속 기록, 비밀번호 변경, 엑셀 다운로드
 - 중복 예약은 **DB 레벨(EXCLUDE 제약)** 에서 차단, 모든 변경은 **DB 트리거** 가 이력으로 기록
-- 예약이 바뀔 때마다 **Google 스프레드시트** 에 자동 반영
+- 예약이 바뀔 때마다 **Google 스프레드시트** 에 자동 반영, 동기화·DB 접속이 실패하면 **알림 메일**(Apps Script 방식, 무료)
 
 **비용 0원**: Supabase Free + Vercel Hobby + Google Sheets API(무료 할당량). 모든 시각은 Asia/Seoul.
 
@@ -106,6 +106,8 @@ Google Cloud 콘솔 없이 스프레드시트 안에서 끝납니다.
 
 코드를 고친 뒤에는 **배포 → 배포 관리 → 연필 아이콘 → 버전: 새 버전 → 배포** 를 해야 반영됩니다(URL 은 그대로).
 
+**실패 알림 메일**: Apps Script 방식이면 시트 동기화가 실패하는 순간, 그리고 실패가 다음 날 새벽까지 계속되면 하루 한 번, 스프레드시트를 만든 구글 계정으로 메일이 갑니다. 새벽 점검(Cron)에서 DB 에 접속하지 못해도 메일이 갑니다. Gmail 무료 할당량(하루 100통) 안에서만 쓰므로 비용이 없습니다. 2026-10-23 이전에 붙여 넣은 `Code.gs` 라면 새 `Code.gs` 로 바꿔 붙여 넣고 위처럼 **새 버전으로 다시 배포**한 뒤, 처음 한 번 **메일 보내기 권한을 허용**해야 합니다. Apps Script 자체가 고장 나면 메일도 못 보내므로, 관리자 화면의 빨간 배너도 함께 확인하세요. (5-B 서비스 계정 방식은 메일 알림이 없습니다.)
+
 #### 5-B. 서비스 계정 방식 (Google Cloud 콘솔 사용)
 
 
@@ -162,7 +164,7 @@ Google Cloud 콘솔 없이 스프레드시트 안에서 끝납니다.
 ```bash
 npm run typecheck   # 타입 검사
 npm run lint        # ESLint
-npm test            # 단위 테스트 (시간 유틸: 자정 넘김, 24:00 표시, 주/월 계산)
+npm test            # 단위 테스트 (시간 유틸, 물어보기, 빈 장소 추천, 사용 통계, 시트·엑셀 행 만들기, 변경 이력 요약)
 npm run test:db     # 통합 테스트 (원격 Supabase, .env.local 의 TEST_ADMIN_* 필요)
 ```
 
@@ -171,10 +173,10 @@ npm run test:db     # 통합 테스트 (원격 Supabase, .env.local 의 TEST_ADM
 ## 폴더 구조
 
 ```
-app/                 페이지 (홈, admin/login, admin/(protected)/{예약,rooms,history,access,account}, api/{export,keepalive})
+app/                 페이지 (홈, admin/login, admin/(protected)/{예약,rooms,stats,history,access,account}, api/{export,keepalive}), 공유 미리보기·아이콘·manifest
 components/public/   일/주/월 뷰, 모바일 카드, 빈 장소 패널
 components/admin/    예약 관리(달력·장소·슬롯·폼·목록), 장소 관리, 내비, 시트 배너
-lib/                 time(서울 시간 유틸), sheets(구글 시트: Apps Script/서비스 계정), excel, audit-format, actions/(서버 액션), supabase/
+lib/                 time(서울 시간 유틸), sheets(구글 시트: Apps Script/서비스 계정, 알림 메일), stats(사용 통계), suggest(빈 장소 추천), excel, audit-format, actions/(서버 액션), supabase/
 google-apps-script/  스프레드시트에 붙여 넣는 Code.gs
 supabase/migrations/ DB 스키마 (테이블·제약·트리거·RLS·seed)
 scripts/             create-admins.ts
@@ -187,4 +189,8 @@ proxy.ts             /admin 보호 (Next 16 의 middleware)
 - 장소를 없애야 하면 **숨기기** 를 쓰세요. 과거 예약과 이력이 보존됩니다.
 - 반복 예약을 수정·삭제할 때 "이 건만 / 이후 전체" 를 고를 수 있습니다.
 - 엑셀 백업: 관리자 예약 화면의 **엑셀 다운로드** (월별 .xlsx).
+- 같은 행사를 다른 날 또 할 때는 예약 목록의 **복사** 를 누르세요. 달력에서 고른 날짜로(같은 날이면 다음 주로) 내용이 채워집니다.
+- 수련회·절기 행사처럼 여러 방을 같은 시간에 쓸 때는 새 예약에서 **여러 장소 한꺼번에 예약** 을 켜세요.
+- **사용 통계** 메뉴: 월별 장소 가동률(06~24시 기준)·부서별·요일별 사용 시간.
+- 휴대폰에서 홈 화면에 추가(사파리 공유 → 홈 화면에 추가 / 크롬 메뉴 → 홈 화면에 추가)하면 앱처럼 열립니다.
 - 비밀번호를 잊으면 `.env.local` 에 새 비밀번호를 넣고 `npx tsx scripts/create-admins.ts --reset-password`.
