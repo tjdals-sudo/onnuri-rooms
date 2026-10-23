@@ -44,6 +44,7 @@ export async function saveRoom(input: RoomInput): Promise<ActionResult<{ id: str
   }
   revalidatePath("/admin/rooms");
   revalidatePath("/admin");
+  revalidatePath("/");
   // 장소명·수용인원이 바뀌면 이번 달 시트에도 반영
   after(() => syncAfterChange([toMonthKey(new Date())]));
   return { ok: true, data: { id: data.id } };
@@ -55,6 +56,7 @@ export async function setRoomActive(id: string, active: boolean): Promise<Action
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/rooms");
   revalidatePath("/admin");
+  revalidatePath("/");
   after(() => syncAfterChange([toMonthKey(new Date())]));
   return { ok: true, data: undefined };
 }

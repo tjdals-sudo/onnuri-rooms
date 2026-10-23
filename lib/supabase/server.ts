@@ -49,3 +49,10 @@ export async function getCurrentAdmin() {
   if (!data) return null;
   return { userId: user.id, loginId: data.login_id as string, displayName: data.display_name as string };
 }
+
+/** 쿠키 없는 공개 클라이언트 (anon 권한). 정적 렌더(ISR) 페이지에서 공개 데이터를 미리 읽을 때 사용 */
+export function getPublicSupabase() {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}

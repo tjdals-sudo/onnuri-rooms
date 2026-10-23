@@ -26,7 +26,7 @@ import { fitPrintArea } from "@/lib/print-fit";
 
 type View = "day" | "week" | "month";
 
-export default function HomeClient() {
+export default function HomeClient({ initialRooms = null }: { initialRooms?: Room[] | null }) {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -35,7 +35,7 @@ export default function HomeClient() {
   const floor = (params.get("floor") as Floor | null) || null;
   const [query, setQuery] = useState("");
 
-  const [rooms, setRooms] = useState<Room[] | null>(null);
+  const [rooms, setRooms] = useState<Room[] | null>(initialRooms);
   const [resState, setResState] = useState<{ key: string; data: PublicReservation[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
