@@ -56,3 +56,11 @@ export function getPublicSupabase() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
+
+/** 관리자 아이디 목록 (admin1, admin2, … 숫자 순) — 이력·접속 기록 필터용 */
+export async function fetchAdminIds(supabase: Awaited<ReturnType<typeof getServerSupabase>>): Promise<string[]> {
+  const { data } = await supabase.from("admins").select("login_id");
+  return ((data ?? []) as { login_id: string }[])
+    .map((a) => a.login_id)
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}

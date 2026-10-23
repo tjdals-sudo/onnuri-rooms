@@ -103,4 +103,4 @@ export interface SheetSyncStatus {
 /** 서버 액션 공통 결과 */
 export type ActionResult<T = undefined> =
   | { ok: true; data: T; warning?: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; /** 다른 예약과 시간이 겹쳐서 실패 (빈 장소 추천용) */ conflict?: boolean };

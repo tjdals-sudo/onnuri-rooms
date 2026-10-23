@@ -1,4 +1,4 @@
-import { getServerSupabase } from "@/lib/supabase/server";
+import { fetchAdminIds, getServerSupabase } from "@/lib/supabase/server";
 import { addDaysToKey, dayRange, fmtDateTime, todayKey } from "@/lib/time";
 import type { LoginLog } from "@/lib/types";
 
@@ -19,7 +19,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
     .order("created_at", { ascending: false })
     .limit(500);
   if (sp.admin) q = q.eq("admin_login_id", sp.admin);
-  const { data, error } = await q;
+  const [{ data, error }, adminIds] = await Promise.all([q, fetchAdminIds(supabase)]);
 
   return (
     <div>
@@ -31,7 +31,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
           <label className="label">관리자</label>
           <select className="input" name="admin" defaultValue={sp.admin ?? ""}>
             <option value="">전체</option>
-            {["admin1", "admin2", "admin3"].map((a) => <option key={a}>{a}</option>)}
+            {[...adminIds].map((a) => <option key={a}>{a}</option>)}
           </select>
         </div>
         <button className="btn btn-primary" type="submit">조회</button>

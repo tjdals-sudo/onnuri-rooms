@@ -12,8 +12,8 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "/admin");
 
-  if (!/^admin[1-3]$/.test(loginId)) {
-    return { error: "아이디는 admin1, admin2, admin3 중 하나입니다." };
+  if (!/^admin[1-9][0-9]?$/.test(loginId)) {
+    return { error: "아이디는 admin1, admin2 … 형식입니다." };
   }
   if (!password) return { error: "비밀번호를 입력해 주세요." };
 

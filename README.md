@@ -1,6 +1,6 @@
 # 인천 온누리교회 장소 사용 현황
 
-교회 홀·방 사용 현황을 **누구나 실시간으로** 보고, **관리자(admin1~3)만** 예약을 등록·수정·삭제하는 웹입니다.
+교회 홀·방 사용 현황을 **누구나 실시간으로** 보고, **관리자(admin1, admin2, …)만** 예약을 등록·수정·삭제하는 웹입니다.
 
 - 홈 `/` : 일 / 주 / 월 보기, 층 필터, 장소 검색, "지금 비어 있는 장소", 실시간 반영
 - 관리자 `/admin` : 예약 등록(달력 → 장소 → 시간), 반복 예약, 장소 관리, 변경 이력, 접속 기록, 비밀번호 변경, 엑셀 다운로드
@@ -56,7 +56,7 @@ supabase config push                # 공개 회원가입 차단 등 인증 설�
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | 공개 키 (브라우저에 노출돼도 되는 키) |
 | `SUPABASE_SECRET_KEY` | 서버 전용 비밀 키 (시트 동기화 상태 기록, Cron, 관리자 생성 스크립트) |
 | `ADMIN_ID_DOMAIN` | 아이디 → 내부 이메일 변환용 도메인. 기본 `onnuri-incheon.local` |
-| `ADMIN1_PASSWORD` ~ `ADMIN3_PASSWORD` | 관리자 초기 비밀번호 (8자 이상). 계정 생성 때 1회 사용 |
+| `ADMIN1_PASSWORD`, `ADMIN2_PASSWORD` … | 관리자 초기 비밀번호 (8자 이상). 계정 생성 때 1회 사용. 번호를 이어 넣으면 관리자 추가 |
 | `GOOGLE_APPS_SCRIPT_URL` | (5-A) Apps Script 웹 앱 URL |
 | `GOOGLE_APPS_SCRIPT_SECRET` | (5-A) `Code.gs` 의 SECRET 과 같은 값 |
 | `GOOGLE_SHEET_ID` | (5-B) 스프레드시트 URL 의 `/d/` 와 `/edit` 사이 문자열 |
@@ -64,16 +64,16 @@ supabase config push                # 공개 회원가입 차단 등 인증 설�
 | `CRON_SECRET` | Vercel Cron 호출 보호용 아무 긴 문자열 |
 | `TEST_ADMIN_LOGIN_ID`, `TEST_ADMIN_PASSWORD` | 통합 테스트용 (선택) |
 
-### 3. 관리자 3계정 만들기
+### 3. 관리자 계정 만들기
 
-`.env.local` 에 `ADMIN1_PASSWORD`~`ADMIN3_PASSWORD` 를 넣고:
+`.env.local` 에 `ADMIN1_PASSWORD`, `ADMIN2_PASSWORD`, `ADMIN3_PASSWORD` … 를 넣고:
 
 ```bash
 npm run create-admins
 # 비밀번호를 다시 설정하려면: npx tsx scripts/create-admins.ts --reset-password
 ```
 
-- 아이디는 `admin1`, `admin2`, `admin3` 세 개뿐이고 회원가입 화면은 없습니다.
+- 아이디는 `admin1`, `admin2`, `admin3` … 형식이고 회원가입 화면은 없습니다. 관리자를 늘리려면 `.env.local` 에 `ADMIN4_PASSWORD=…` 처럼 번호를 이어 넣고 `npm run create-admins` 를 다시 실행하세요(최대 admin99, 기존 계정 비밀번호는 그대로).
 - 내부적으로 `admin1@onnuri-incheon.local` 형식의 이메일로 저장되지만 화면에는 아이디만 보입니다.
 - 로그인 후 **내 계정** 메뉴에서 각자 비밀번호를 바꾸세요.
 
@@ -145,7 +145,7 @@ Google Cloud 콘솔 없이 스프레드시트 안에서 끝납니다.
 
 | 테이블 | 내용 |
 | --- | --- |
-| `admins` | 관리자(user_id, login_id admin1~3) |
+| `admins` | 관리자(user_id, login_id admin1~admin99) |
 | `rooms` | 장소(층, 이름, 수용 인원, 좌석 형태, 정렬, 활성 여부) — 삭제 대신 숨김 |
 | `reservations` | 예약. `EXCLUDE USING gist (room_id WITH =, tstzrange(start_at,end_at,'[)') WITH &&)` 로 겹침 차단 |
 | `audit_logs` | 변경 이력(누가·언제·무엇을·변경 전/후 jsonb). 트리거가 기록, 수정·삭제 불가 |

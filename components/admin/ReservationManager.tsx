@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { addMonthsToKey, fmtDateKeyKo, toDateKey } from "@/lib/time";
+import { addDaysToKey, addMonthsToKey, fmtDateKeyKo, toDateKey } from "@/lib/time";
 import type { Reservation, Room } from "@/lib/types";
 import AdminCalendar from "./AdminCalendar";
 import RoomPicker from "./RoomPicker";
@@ -70,6 +70,12 @@ export default function ReservationManager({
 
   const openEdit = (r: Reservation) => setForm({ initial: { room_id: r.room_id, dateKey: toDateKey(r.start_at) }, editing: r });
 
+  // 복사: 달력에서 고른 날짜로. 원본과 같은 날을 보고 있으면 다음 주 같은 요일로
+  const openCopy = (r: Reservation) => {
+    const src = toDateKey(r.start_at);
+    setForm({ initial: { room_id: r.room_id, dateKey: dateKey === src ? addDaysToKey(src, 7) : dateKey, copyFrom: r }, editing: null });
+  };
+
   const saved = (msg: string) => {
     setForm(null);
     setToast(msg);
@@ -110,7 +116,7 @@ export default function ReservationManager({
           <div className="card p-4">
             <h2 className="mb-1 text-lg font-bold">② 시간 선택 · {fmtDateKeyKo(dateKey)}</h2>
             {selectedRoom ? (
-              <SlotPicker key={`${selectedRoom.id}-${dateKey}`} room={selectedRoom} dateKey={dateKey} reservations={reservations} onPick={(s, e) => openNew(s, e)} onEdit={openEdit} onDelete={setDeleting} />
+              <SlotPicker key={`${selectedRoom.id}-${dateKey}`} room={selectedRoom} dateKey={dateKey} reservations={reservations} onPick={(s, e) => openNew(s, e)} onEdit={openEdit} onCopy={openCopy} onDelete={setDeleting} />
             ) : (
               <p className="py-6 text-center text-muted">왼쪽에서 장소를 먼저 선택해 주세요. 이미 찬 시간은 선택할 수 없게 표시됩니다.</p>
             )}
@@ -122,6 +128,7 @@ export default function ReservationManager({
             admins={admins}
             monthKey={monthKey}
             onEdit={openEdit}
+            onCopy={openCopy}
             onChanged={(msg) => {
               setToast(msg);
               router.refresh();

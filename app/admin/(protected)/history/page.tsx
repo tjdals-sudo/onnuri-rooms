@@ -1,5 +1,5 @@
 import { summarizeAudit, type RoomNameMap } from "@/lib/audit-format";
-import { getServerSupabase } from "@/lib/supabase/server";
+import { fetchAdminIds, getServerSupabase } from "@/lib/supabase/server";
 import { dayRange, fmtDateTime, todayKey, addDaysToKey } from "@/lib/time";
 import type { AuditLog, Room } from "@/lib/types";
 
@@ -23,7 +23,11 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   if (sp.action) q = q.eq("action", sp.action);
   if (sp.table) q = q.eq("target_table", sp.table);
 
-  const [{ data: logs, error }, { data: rooms }] = await Promise.all([q, supabase.from("rooms").select("id, floor, name")]);
+  const [{ data: logs, error }, { data: rooms }, adminIds] = await Promise.all([
+    q,
+    supabase.from("rooms").select("id, floor, name"),
+    fetchAdminIds(supabase),
+  ]);
   const roomMap: RoomNameMap = new Map(((rooms ?? []) as Pick<Room, "id" | "floor" | "name">[]).map((r) => [r.id, { floor: r.floor, name: r.name }]));
 
   return (
@@ -36,7 +40,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
           <label className="label">관리자</label>
           <select className="input" name="admin" defaultValue={sp.admin ?? ""}>
             <option value="">전체</option>
-            {["admin1", "admin2", "admin3", "system"].map((a) => <option key={a}>{a}</option>)}
+            {[...adminIds, "system"].map((a) => <option key={a}>{a}</option>)}
           </select>
         </div>
         <div>

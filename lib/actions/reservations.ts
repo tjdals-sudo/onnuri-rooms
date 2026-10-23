@@ -73,7 +73,7 @@ export async function createReservation(input: ReservationInput): Promise<Action
 
   // 친절한 메시지를 위해 먼저 조회하고, 최종 차단은 DB EXCLUDE 제약이 맡는다
   const pre = await supabase.rpc("find_conflicts", { p_room_id: input.room_id, p_start: input.start_at, p_end: input.end_at, p_exclude_id: null });
-  if ((pre.data ?? []).length > 0) return { ok: false, error: await conflictMessage(input.room_id, input.start_at, input.end_at) };
+  if ((pre.data ?? []).length > 0) return { ok: false, conflict: true, error: await conflictMessage(input.room_id, input.start_at, input.end_at) };
 
   const { data, error } = await supabase
     .from("reservations")
@@ -81,7 +81,7 @@ export async function createReservation(input: ReservationInput): Promise<Action
     .select("id")
     .single();
   if (error) {
-    if (isOverlapError(error)) return { ok: false, error: await conflictMessage(input.room_id, input.start_at, input.end_at) };
+    if (isOverlapError(error)) return { ok: false, conflict: true, error: await conflictMessage(input.room_id, input.start_at, input.end_at) };
     return { ok: false, error: error.message };
   }
   queueSync([toMonthKey(input.start_at)]);
@@ -127,11 +127,11 @@ export async function updateReservation(
   }
 
   const pre = await supabase.rpc("find_conflicts", { p_room_id: input.room_id, p_start: input.start_at, p_end: input.end_at, p_exclude_id: id });
-  if ((pre.data ?? []).length > 0) return { ok: false, error: await conflictMessage(input.room_id, input.start_at, input.end_at, id) };
+  if ((pre.data ?? []).length > 0) return { ok: false, conflict: true, error: await conflictMessage(input.room_id, input.start_at, input.end_at, id) };
 
   const { error } = await supabase.from("reservations").update({ ...input, title: input.title.trim() }).eq("id", id);
   if (error) {
-    if (isOverlapError(error)) return { ok: false, error: await conflictMessage(input.room_id, input.start_at, input.end_at, id) };
+    if (isOverlapError(error)) return { ok: false, conflict: true, error: await conflictMessage(input.room_id, input.start_at, input.end_at, id) };
     return { ok: false, error: error.message };
   }
   queueSync([toMonthKey(before.start_at), toMonthKey(input.start_at)]);
@@ -159,6 +159,50 @@ export async function deleteReservation(id: string, scope: "one" | "following"):
   if (error) return { ok: false, error: error.message };
   queueSync([toMonthKey(before.start_at)]);
   return { ok: true, data: { count: 1 } };
+}
+
+/** 같은 장소·시간을 여러 장소에 한 번에 등록 (수련회·절기 행사 등). 하나라도 겹치면 아무것도 등록하지 않는다 */
+export async function createReservationsMulti(input: ReservationInput, roomIds: string[]): Promise<ActionResult<{ created: number }>> {
+  const ids = Array.from(new Set(roomIds.filter(Boolean)));
+  if (ids.length === 0) return { ok: false, error: "장소를 선택해 주세요." };
+  if (ids.length > 30) return { ok: false, error: "한 번에 30곳까지 등록할 수 있습니다." };
+  for (const roomId of ids) {
+    const v = validate({ ...input, room_id: roomId });
+    if (v) return { ok: false, error: v };
+  }
+  const supabase = await getServerSupabase();
+
+  const messages: string[] = [];
+  for (const roomId of ids) {
+    const pre = await supabase.rpc("find_conflicts", { p_room_id: roomId, p_start: input.start_at, p_end: input.end_at, p_exclude_id: null });
+    if ((pre.data ?? []).length > 0) messages.push(await conflictMessage(roomId, input.start_at, input.end_at));
+  }
+  if (messages.length > 0) return { ok: false, conflict: true, error: `${messages.join(" ")} 겹치는 장소를 빼고 다시 등록해 주세요.` };
+
+  // 한 번의 insert 는 한 트랜잭션 — 그 사이 누가 먼저 잡으면 전부 취소된다
+  const { data, error } = await supabase
+    .from("reservations")
+    .insert(ids.map((roomId) => ({ ...input, room_id: roomId, title: input.title.trim() })))
+    .select("id");
+  if (error) {
+    if (isOverlapError(error)) return { ok: false, conflict: true, error: "방금 다른 예약이 먼저 등록되어 겹치는 장소가 생겼습니다. 다시 확인해 주세요." };
+    return { ok: false, error: error.message };
+  }
+  queueSync([toMonthKey(input.start_at)]);
+  return { ok: true, data: { created: data?.length ?? 0 } };
+}
+
+/** 주어진 시간에 이미 예약이 있는 장소 id (빈 장소 추천용) */
+export async function findBusyRoomIds(startIso: string, endIso: string, excludeId?: string): Promise<ActionResult<string[]>> {
+  const s = new Date(startIso);
+  const e = new Date(endIso);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e <= s) return { ok: false, error: "시간이 올바르지 않습니다." };
+  const supabase = await getServerSupabase();
+  let q = supabase.from("reservations").select("id, room_id").lt("start_at", e.toISOString()).gt("end_at", s.toISOString());
+  if (excludeId) q = q.neq("id", excludeId);
+  const { data, error } = await q;
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: Array.from(new Set((data ?? []).map((r) => r.room_id as string))) };
 }
 
 /** 반복 예약 충돌 미리보기 */

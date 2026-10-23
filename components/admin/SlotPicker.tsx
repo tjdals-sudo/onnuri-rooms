@@ -11,6 +11,7 @@ export default function SlotPicker({
   reservations,
   onPick,
   onEdit,
+  onCopy,
   onDelete,
 }: {
   room: Room;
@@ -18,6 +19,7 @@ export default function SlotPicker({
   reservations: Reservation[];
   onPick: (startTime: string, endTime: string) => void;
   onEdit: (r: Reservation) => void;
+  onCopy: (r: Reservation) => void;
   onDelete: (r: Reservation) => void;
 }) {
   const [start, setStart] = useState<number | null>(null);
@@ -97,6 +99,7 @@ export default function SlotPicker({
               <span className="min-w-0 truncate">{r.title}{r.department ? ` · ${r.department}` : ""}</span>
               <span className="ml-auto flex shrink-0 gap-1">
                 <button className="btn btn-sm" onClick={() => onEdit(r)}>수정</button>
+                <button className="btn btn-sm" onClick={() => onCopy(r)} title="같은 내용으로 다른 날짜에 예약">복사</button>
                 <button className="btn btn-sm btn-danger" onClick={() => onDelete(r)}>삭제</button>
               </span>
             </li>

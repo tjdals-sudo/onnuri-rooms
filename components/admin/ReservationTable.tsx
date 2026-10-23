@@ -11,6 +11,7 @@ export default function ReservationTable({
   admins,
   monthKey,
   onEdit,
+  onCopy,
   onChanged,
 }: {
   rooms: Room[];
@@ -18,6 +19,7 @@ export default function ReservationTable({
   admins: Record<string, string>;
   monthKey: string;
   onEdit: (r: Reservation) => void;
+  onCopy: (r: Reservation) => void;
   onChanged: (msg: string) => void;
 }) {
   const [floor, setFloor] = useState<Floor | "">("");
@@ -95,6 +97,7 @@ export default function ReservationTable({
                     </td>
                     <td className="whitespace-nowrap">
                       <button className="btn btn-sm" onClick={() => onEdit(r)}>수정</button>{" "}
+                      <button className="btn btn-sm" onClick={() => onCopy(r)} title="같은 내용으로 다른 날짜에 예약">복사</button>{" "}
                       <button className="btn btn-sm btn-danger" onClick={() => setConfirm(r)}>삭제</button>
                     </td>
                   </tr>

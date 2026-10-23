@@ -1,7 +1,7 @@
 /**
- * 관리자 3계정(admin1~3) 생성 스크립트
+ * 관리자 계정(admin1, admin2, …) 생성 스크립트
  *   npx tsx scripts/create-admins.ts
- * - .env.local 의 ADMIN1_PASSWORD ~ ADMIN3_PASSWORD 로 비밀번호 설정
+ * - .env.local 의 ADMIN{번호}_PASSWORD 로 비밀번호 설정 (ADMIN1_PASSWORD, ADMIN4_PASSWORD … 있는 번호만, 최대 99)
  * - 이미 있는 계정은 비밀번호를 덮어쓰지 않고 건너뜀 (--reset-password 를 붙이면 재설정)
  * - 내부 이메일은 `${login_id}@${ADMIN_ID_DOMAIN}` 형식 (화면에는 아이디만 보임)
  */
@@ -26,7 +26,15 @@ async function main() {
   const { data: list, error: listErr } = await admin.auth.admin.listUsers({ perPage: 200 });
   if (listErr) throw listErr;
 
-  for (const n of [1, 2, 3]) {
+  // .env.local 에 ADMIN{n}_PASSWORD 가 있는 번호만 (예: ADMIN4_PASSWORD 를 추가하면 admin4 생성)
+  const numbers = Object.keys(process.env)
+    .map((k) => k.match(/^ADMIN([1-9][0-9]?)_PASSWORD$/)?.[1])
+    .filter((n): n is string => Boolean(n))
+    .map(Number)
+    .sort((a, b) => a - b);
+  if (numbers.length === 0) console.error("ADMIN1_PASSWORD 같은 비밀번호 환경변수가 하나도 없습니다.");
+
+  for (const n of numbers) {
     const loginId = `admin${n}`;
     const email = `${loginId}@${domain}`;
     const password = process.env[`ADMIN${n}_PASSWORD`];
