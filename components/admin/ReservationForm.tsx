@@ -1,6 +1,8 @@
 "use client";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { addDepartment } from "@/lib/actions/departments";
 import {
+  checkConflicts,
   createRecurring,
   createReservation,
   createReservationsMulti,
@@ -13,7 +15,8 @@ import {
 import { FLOOR_COLORS } from "@/lib/floor-colors";
 import { suggestRooms } from "@/lib/suggest";
 import { addDaysToKey, countWeeklyUntil, fmtDateKo, fmtRange, fmtTime, seoulToUtc, toDateKey } from "@/lib/time";
-import { FLOORS, FLOOR_LABEL, FLOOR_SHORT, type Reservation, type Room } from "@/lib/types";
+import { FLOORS, FLOOR_LABEL, FLOOR_SHORT, type ConflictInfo, type Department, type Reservation, type Room } from "@/lib/types";
+import ConflictDialog from "./ConflictDialog";
 
 export interface FormInitial {
   room_id?: string;
@@ -59,14 +62,18 @@ function splitEnd(iso: string): { date: string; time: string } {
   return { date: toDateKey(d), time: fmtTime(d) };
 }
 
+const NEW_DEPT = "__new__";
+
 export default function ReservationForm({
   rooms,
+  departments,
   initial,
   editing,
   onClose,
   onSaved,
 }: {
   rooms: Room[];
+  departments: Department[];
   initial: FormInitial;
   editing: Reservation | null;
   onClose: () => void;
@@ -93,8 +100,12 @@ export default function ReservationForm({
   // 여러 장소 한꺼번에 (새 예약에서만, 반복과는 같이 쓰지 않음)
   const [multi, setMulti] = useState(false);
   const [extraRoomIds, setExtraRoomIds] = useState<string[]>([]);
-  // 시간이 겹쳐 거절됐을 때 추천하는 빈 장소
-  const [alternatives, setAlternatives] = useState<Room[] | null>(null);
+  // 저장하다 겹치면 뜨는 팝업 (겹치는 예약 + 같은 시간 빈 장소)
+  const [conflictPopup, setConflictPopup] = useState<{ conflicts: ConflictInfo[]; alternatives: Room[] | null } | null>(null);
+  // 사용 부서: 목록에서 고르기 (+ 이 자리에서 목록에 새 부서 추가)
+  const [deptList, setDeptList] = useState(departments);
+  const [addingDept, setAddingDept] = useState(false);
+  const [newDept, setNewDept] = useState("");
 
   const [repeat, setRepeat] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"count" | "until">("count");
@@ -136,19 +147,63 @@ export default function ReservationForm({
 
   const multiRooms = multi && !editing ? Array.from(new Set([roomId, ...extraRoomIds].filter(Boolean))) : [];
 
-  /** 겹침으로 거절되면 같은 시간에 빈 장소를 찾아 보여 준다 */
-  const fail = async (r: { error: string; conflict?: boolean }) => {
-    setError(r.error);
-    if (!r.conflict || multiRooms.length > 1 || !startIso || !endIso) return;
+  // 시간·장소를 바꿀 때마다 저장 전에 미리 겹침 확인 (0.35초 쉬었다가)
+  const checkRoomIds = multiRooms.length > 1 ? multiRooms : roomId ? [roomId] : [];
+  const checkKey = `${checkRoomIds.join(",")}|${startIso}|${endIso}`;
+  const excludeId = editing?.id;
+  const [live, setLive] = useState<{ key: string; list: ConflictInfo[] } | null>(null);
+  useEffect(() => {
+    const [ids, s, e] = checkKey.split("|");
+    if (!ids || !s || !e || e <= s) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const r = await checkConflicts(ids.split(","), s, e, excludeId);
+      if (!cancelled && r.ok) setLive({ key: checkKey, list: r.data });
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [checkKey, excludeId]);
+  const liveConflicts = live && live.key === checkKey ? live.list : [];
+
+  /** 겹침으로 거절되면 어느 팀과 겹치는지 팝업으로 보여 주고, 같은 시간에 빈 장소를 찾는다 */
+  const fail = async (r: { error: string; conflict?: boolean; conflicts?: ConflictInfo[] }) => {
+    if (!r.conflict) return setError(r.error);
+    setConflictPopup({ conflicts: r.conflicts ?? [], alternatives: null });
+    if (r.conflicts?.length === 0) setError(r.error);
+    if (multiRooms.length > 1 || !startIso || !endIso) return;
     const busy = await findBusyRoomIds(startIso, endIso, editing?.id);
-    if (busy.ok) setAlternatives(suggestRooms(rooms, new Set(busy.data), { current: room, attendees: attendeesNum }));
+    if (busy.ok) {
+      const alternatives = suggestRooms(rooms, new Set(busy.data), { current: room, attendees: attendeesNum });
+      setConflictPopup((p) => (p ? { ...p, alternatives } : p));
+    }
   };
+
+  const pickDepartment = (v: string) => {
+    if (v === NEW_DEPT) {
+      setAddingDept(true);
+      return;
+    }
+    setDepartment(v);
+  };
+  const saveNewDept = () =>
+    start(async () => {
+      const r = await addDepartment(newDept);
+      if (!r.ok) return setError(r.error);
+      setDeptList((l) => (l.some((d) => d.id === r.data.id) ? l : [...l, r.data].sort((a, b) => a.sort_order - b.sort_order)));
+      setDepartment(r.data.name);
+      setAddingDept(false);
+      setNewDept("");
+    });
+  const deptInList = deptList.some((d) => d.name === department);
 
   const submit = (skipConflicts = true) =>
     start(async () => {
       setError(null);
-      setAlternatives(null);
+      setConflictPopup(null);
       if (!roomId) return setError("장소를 선택해 주세요.");
+      if (!editing && !department.trim()) return setError("사용 부서를 골라 주세요. 목록에 없으면 '＋ 새 부서 추가'를 누르세요.");
       if (editing) {
         const r = await updateReservation(editing.id, buildInput(), isRecurringEdit ? scope : "one");
         if (!r.ok) return fail(r);
@@ -157,7 +212,7 @@ export default function ReservationForm({
       }
       if (repeat && count > 1) {
         const r = await createRecurring(buildInput(), count, skipConflicts);
-        if (!r.ok) return setError(r.error);
+        if (!r.ok) return fail(r);
         onSaved(`반복 예약 ${r.data.created}건을 등록했습니다.${r.data.skipped.length ? ` (충돌 ${r.data.skipped.length}건 제외)` : ""}`);
         return;
       }
@@ -251,8 +306,33 @@ export default function ReservationForm({
             <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 청년부 예배" required />
           </div>
           <div>
-            <label className="label">사용 부서</label>
-            <input className="input" value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="예: 청년부" />
+            <label className="label">사용 부서{editing ? "" : " *"}</label>
+            {addingDept ? (
+              <div className="flex gap-1">
+                <input
+                  className="input min-w-0"
+                  value={newDept}
+                  onChange={(e) => setNewDept(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && newDept.trim() && saveNewDept()}
+                  placeholder="새 부서 이름"
+                  autoFocus
+                />
+                <button className="btn btn-sm shrink-0" onClick={saveNewDept} disabled={pending || !newDept.trim()}>추가</button>
+                <button className="btn btn-sm shrink-0" onClick={() => setAddingDept(false)}>취소</button>
+              </div>
+            ) : (
+              <select className="input" value={department} onChange={(e) => pickDepartment(e.target.value)}>
+                <option value="">{editing ? "(부서 없음)" : "선택하세요"}</option>
+                {department && !deptInList && <option value={department}>{department} (목록에 없음)</option>}
+                {deptList.filter((d) => d.is_active || d.name === department).map((d) => (
+                  <option key={d.id} value={d.name}>{d.name}</option>
+                ))}
+                <option value={NEW_DEPT}>＋ 새 부서 추가…</option>
+              </select>
+            )}
+            {department && !deptInList && !addingDept && (
+              <p className="mt-1 text-sm text-[#8a5a00]">목록에 없는 이름이에요. 목록에서 골라 주시면 통계가 정확해져요.</p>
+            )}
           </div>
           <div>
             <label className="label">예상 인원</label>
@@ -285,6 +365,19 @@ export default function ReservationForm({
               <p className="mt-1 text-sm text-muted">{fmtDateKo(startIso)} {fmtRange(startIso, endIso)}</p>
             )}
           </div>
+
+          {liveConflicts.length > 0 && (
+            <div role="alert" className="sm:col-span-2 rounded-lg border border-danger/40 bg-red-50 px-3 py-2 text-danger">
+              <p className="font-semibold">⚠ 이 시간에 이미 예약이 있어요</p>
+              <ul className="mt-1 space-y-0.5 text-sm">
+                {liveConflicts.map((c) => (
+                  <li key={c.id}>
+                    <strong>{c.department || "부서 미입력"}</strong> &lsquo;{c.title}&rsquo; · {FLOOR_SHORT[c.floor]} {c.room_name} · {fmtRange(c.start_at, c.end_at)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="sm:col-span-2">
             <label className="label">메모 <span className="font-normal">(비공개)</span></label>
@@ -323,7 +416,7 @@ export default function ReservationForm({
                               <td>{p.seq + 1}</td>
                               <td>{fmtDateKo(p.start_at)}</td>
                               <td className="tabular-nums">{fmtRange(p.start_at, p.end_at)}</td>
-                              <td>{p.conflict_id ? <span className="text-danger">✕ &lsquo;{p.conflict_title}&rsquo; {fmtRange(p.conflict_start!, p.conflict_end!)}</span> : <span className="text-ok">○ 가능</span>}</td>
+                              <td>{p.conflict_id ? <span className="text-danger">✕ {p.conflict_department ? <strong>{p.conflict_department} </strong> : null}&lsquo;{p.conflict_title}&rsquo; {fmtRange(p.conflict_start!, p.conflict_end!)}</span> : <span className="text-ok">○ 가능</span>}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -349,33 +442,18 @@ export default function ReservationForm({
         </div>
 
         {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-danger">{error}</p>}
-        {alternatives && (
-          <div className="mt-2 rounded-lg border border-line p-3">
-            {alternatives.length === 0 ? (
-              <p className="text-sm text-muted">같은 시간에 비어 있는 다른 장소가 없습니다.</p>
-            ) : (
-              <>
-                <p className="mb-2 text-sm font-semibold">같은 시간에 비어 있는 장소 — 누르면 장소가 바뀝니다</p>
-                <div className="flex flex-wrap gap-2">
-                  {alternatives.map((r) => (
-                    <button
-                      key={r.id}
-                      className="btn btn-sm"
-                      style={{ borderColor: FLOOR_COLORS[r.floor].border, color: FLOOR_COLORS[r.floor].text }}
-                      onClick={() => {
-                        setRoomId(r.id);
-                        setExtraRoomIds((ids) => ids.filter((x) => x !== r.id));
-                        setAlternatives(null);
-                        setError(null);
-                      }}
-                    >
-                      {FLOOR_SHORT[r.floor]} {r.name} · {r.capacity_text}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+        {conflictPopup && (
+          <ConflictDialog
+            conflicts={conflictPopup.conflicts}
+            alternatives={conflictPopup.alternatives}
+            onClose={() => setConflictPopup(null)}
+            onPickRoom={(r) => {
+              setRoomId(r.id);
+              setExtraRoomIds((ids) => ids.filter((x) => x !== r.id));
+              setConflictPopup(null);
+              setError(null);
+            }}
+          />
         )}
 
         <div className="mt-4 flex justify-end gap-2">

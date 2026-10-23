@@ -64,7 +64,7 @@ export default function SlotPicker({
               key={i}
               disabled={Boolean(occ)}
               onClick={() => click(m)}
-              title={occ ? `${fmtRange(occ.r.start_at, occ.r.end_at)} '${occ.r.title}'` : minToLabel(m)}
+              title={occ ? `${fmtRange(occ.r.start_at, occ.r.end_at)} ${occ.r.department ? `${occ.r.department} ` : ""}'${occ.r.title}'` : minToLabel(m)}
               className={`h-10 rounded border text-xs tabular-nums ${
                 occ
                   ? "cursor-not-allowed border-line bg-[#e2e8f0] text-muted line-through"

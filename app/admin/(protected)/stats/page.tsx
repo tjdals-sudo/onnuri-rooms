@@ -87,7 +87,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
             </table>
           </Section>
 
-          <Section title="부서별 사용">
+          <Section title="부서별 사용" note="이름이 흩어져 있으면 '부서 관리'에서 합칠 수 있어요.">
             {stats.departments.length === 0 ? (
               <p className="py-6 text-center text-muted">이 달에는 예약이 없습니다.</p>
             ) : (

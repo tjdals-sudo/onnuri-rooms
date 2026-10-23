@@ -100,7 +100,42 @@ export interface SheetSyncStatus {
   synced_at: string;
 }
 
+/** 사용 부서 목록 */
+export interface Department {
+  id: string;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+/** 예약에 실제로 쓰인 부서 이름별 건수 (부서 정리용) */
+export interface DepartmentUsage {
+  department: string;
+  reservation_count: number;
+  sample_title: string;
+  last_used: string;
+}
+
+/** 시간이 겹치는 기존 예약 (겹침 알림 팝업용) */
+export interface ConflictInfo {
+  id: string;
+  floor: Floor;
+  room_name: string;
+  title: string;
+  department: string;
+  start_at: string;
+  end_at: string;
+}
+
 /** 서버 액션 공통 결과 */
 export type ActionResult<T = undefined> =
   | { ok: true; data: T; warning?: string }
-  | { ok: false; error: string; /** 다른 예약과 시간이 겹쳐서 실패 (빈 장소 추천용) */ conflict?: boolean };
+  | {
+      ok: false;
+      error: string;
+      /** 다른 예약과 시간이 겹쳐서 실패 (빈 장소 추천용) */
+      conflict?: boolean;
+      /** 겹치는 예약들 (어느 팀과 겹치는지 팝업으로 보여 줌) */
+      conflicts?: ConflictInfo[];
+    };

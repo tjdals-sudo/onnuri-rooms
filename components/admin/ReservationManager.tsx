@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { addDaysToKey, addMonthsToKey, fmtDateKeyKo, toDateKey } from "@/lib/time";
-import type { Reservation, Room } from "@/lib/types";
+import type { Department, Reservation, Room } from "@/lib/types";
 import AdminCalendar from "./AdminCalendar";
 import RoomPicker from "./RoomPicker";
 import SlotPicker from "./SlotPicker";
@@ -12,6 +12,7 @@ import DeleteReservationDialog from "./DeleteReservationDialog";
 
 export default function ReservationManager({
   rooms,
+  departments,
   reservations,
   admins,
   monthKey,
@@ -19,6 +20,7 @@ export default function ReservationManager({
   error,
 }: {
   rooms: Room[];
+  departments: Department[];
   reservations: Reservation[];
   admins: Record<string, string>;
   monthKey: string;
@@ -140,6 +142,7 @@ export default function ReservationManager({
       {form && (
         <ReservationForm
           rooms={activeRooms}
+          departments={departments}
           initial={form.initial}
           editing={form.editing}
           onClose={() => setForm(null)}

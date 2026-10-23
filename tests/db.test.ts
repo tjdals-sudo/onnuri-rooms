@@ -171,6 +171,40 @@ describe.skipIf(!enabled)("DB 제약·트리거·RLS", () => {
     expect(del.error !== null || del.data?.length === 0).toBe(true);
   });
 
+  it("여러 장소 한 번에 넣기는 한 곳이라도 겹치면 전부 취소된다", async () => {
+    const { data: rooms } = await admin.from("rooms").select("id").eq("is_active", true).order("sort_order").limit(2);
+    const [a, b] = rooms!.map((r) => r.id as string);
+    const row = (room_id: string, title: string) => ({ room_id, title: `${T}${title}`, start_at: D("2031-04-01", "10:00"), end_at: D("2031-04-01", "12:00") });
+    await admin.from("reservations").insert(row(b, "먼저"));
+    const { error } = await admin.from("reservations").insert([row(a, "묶음A"), row(b, "묶음B")]);
+    expect(error?.code).toBe("23P01");
+    const { data: left } = await admin.from("reservations").select("id").eq("title", `${T}묶음A`);
+    expect(left).toHaveLength(0);
+  });
+
+  it("겹침 조회와 반복 미리보기가 겹친 예약의 부서를 돌려준다", async () => {
+    await admin.from("reservations").insert({ room_id: roomId, title: `${T}부서확인`, department: "[TEST]청년부", start_at: D("2031-05-06", "10:00"), end_at: D("2031-05-06", "12:00") });
+    const fc = await admin.rpc("find_conflicts", { p_room_id: roomId, p_start: D("2031-05-06", "11:00"), p_end: D("2031-05-06", "13:00"), p_exclude_id: null });
+    expect(fc.data?.[0]).toMatchObject({ department: "[TEST]청년부", title: `${T}부서확인` });
+    const pv = await admin.rpc("preview_recurring", { p_room_id: roomId, p_start: D("2031-04-29", "11:00"), p_end: D("2031-04-29", "13:00"), p_count: 2 });
+    expect(pv.error).toBeNull();
+    expect(pv.data?.[1]).toMatchObject({ conflict_department: "[TEST]청년부" });
+  });
+
+  it("부서 목록: 누구나 보고 관리자만 바꾸며, 사용 건수를 셀 수 있다", async () => {
+    const pub = await anon.from("departments").select("name").eq("is_active", true);
+    expect(pub.error).toBeNull();
+    expect((pub.data ?? []).map((d) => d.name)).toContain("기타");
+    const denied = await anon.from("departments").insert({ name: "[TEST]익명" }).select();
+    expect(denied.data ?? []).toHaveLength(0);
+    const ins = await admin.from("departments").insert({ name: "[TEST]부서" }).select("id").single();
+    expect(ins.error).toBeNull();
+    await admin.from("departments").delete().eq("id", ins.data!.id);
+    const usage = await admin.rpc("department_usage");
+    expect(usage.error).toBeNull();
+    expect(await anon.rpc("department_usage").then((r) => r.data ?? [])).toHaveLength(0);
+  });
+
   it("예약이 바뀌면 공개 채널로 실시간 신호가 온다", async () => {
     const received = new Promise<Record<string, unknown>>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("15초 안에 실시간 메시지를 받지 못했습니다")), 15000);

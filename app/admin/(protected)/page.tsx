@@ -1,7 +1,7 @@
 import ReservationManager from "@/components/admin/ReservationManager";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { monthRange, toMonthKey, todayKey } from "@/lib/time";
-import type { Reservation, Room } from "@/lib/types";
+import type { Department, Reservation, Room } from "@/lib/types";
 
 export default async function AdminHome({
   searchParams,
@@ -15,7 +15,7 @@ export default async function AdminHome({
 
   const supabase = await getServerSupabase();
   const { start, end } = monthRange(monthKey);
-  const [roomsRes, resRes, adminsRes] = await Promise.all([
+  const [roomsRes, resRes, adminsRes, deptRes] = await Promise.all([
     supabase.from("rooms").select("*").order("sort_order").order("name"),
     supabase
       .from("reservations")
@@ -24,6 +24,7 @@ export default async function AdminHome({
       .gt("end_at", start.toISOString())
       .order("start_at"),
     supabase.from("admins").select("user_id, login_id"),
+    supabase.from("departments").select("*").order("sort_order").order("name"),
   ]);
 
   const admins: Record<string, string> = {};
@@ -32,6 +33,7 @@ export default async function AdminHome({
   return (
     <ReservationManager
       rooms={(roomsRes.data ?? []) as Room[]}
+      departments={(deptRes.data ?? []) as Department[]}
       reservations={(resRes.data ?? []) as Reservation[]}
       admins={admins}
       monthKey={monthKey}

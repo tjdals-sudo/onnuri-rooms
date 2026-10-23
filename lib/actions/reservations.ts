@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { syncAfterChange } from "@/lib/sheets";
 import { fmtRange, toMonthKey } from "@/lib/time";
-import { FLOOR_LABEL, type ActionResult, type Floor } from "@/lib/types";
+import { FLOOR_LABEL, type ActionResult, type ConflictInfo } from "@/lib/types";
 
 export interface ReservationInput {
   room_id: string;
@@ -26,6 +26,7 @@ export interface PreviewRow {
   conflict_title: string | null;
   conflict_start: string | null;
   conflict_end: string | null;
+  conflict_department: string | null;
 }
 
 function validate(input: ReservationInput): string | null {
@@ -40,8 +41,8 @@ function validate(input: ReservationInput): string | null {
   return null;
 }
 
-/** "○층 ○○홀은 ○시~○시에 '행사명'으로 이미 예약되어 있습니다" */
-async function conflictMessage(roomId: string, startIso: string, endIso: string, excludeId?: string): Promise<string> {
+/** 이 장소·시간과 겹치는 예약 전부 */
+async function findConflictList(roomId: string, startIso: string, endIso: string, excludeId?: string): Promise<ConflictInfo[]> {
   const supabase = await getServerSupabase();
   const { data } = await supabase.rpc("find_conflicts", {
     p_room_id: roomId,
@@ -49,11 +50,28 @@ async function conflictMessage(roomId: string, startIso: string, endIso: string,
     p_end: endIso,
     p_exclude_id: excludeId ?? null,
   });
-  const c = (data ?? [])[0] as
-    | { title: string; start_at: string; end_at: string; floor: Floor; room_name: string }
-    | undefined;
-  if (!c) return "같은 장소에 시간이 겹치는 예약이 있습니다.";
-  return `${FLOOR_LABEL[c.floor]} ${c.room_name}은 ${fmtRange(c.start_at, c.end_at)}에 '${c.title}'으로 이미 예약되어 있습니다.`;
+  return (data ?? []) as ConflictInfo[];
+}
+
+/** "○층 ○○홀은 ○시~○시에 '행사명'(부서)으로 이미 예약되어 있습니다" */
+function conflictText(c: ConflictInfo): string {
+  const who = c.department ? `${c.department}의 '${c.title}'` : `'${c.title}'`;
+  return `${FLOOR_LABEL[c.floor]} ${c.room_name}은 ${fmtRange(c.start_at, c.end_at)}에 ${who}으로 이미 예약되어 있습니다.`;
+}
+
+/** 겹침 실패 결과 — 겹치는 예약 목록을 함께 돌려줘 화면에서 팝업으로 보여 준다 */
+function conflictResult(conflicts: ConflictInfo[], fallback = "같은 장소에 시간이 겹치는 예약이 있습니다."): { ok: false; error: string; conflict: true; conflicts: ConflictInfo[] } {
+  return { ok: false, conflict: true, conflicts, error: conflicts.length > 0 ? conflictText(conflicts[0]) : fallback };
+}
+
+/** 저장 전에 미리 겹침 확인 (폼에서 시간·장소를 바꿀 때마다 호출) */
+export async function checkConflicts(roomIds: string[], startIso: string, endIso: string, excludeId?: string): Promise<ActionResult<ConflictInfo[]>> {
+  const s = new Date(startIso);
+  const e = new Date(endIso);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e <= s) return { ok: true, data: [] };
+  const ids = Array.from(new Set(roomIds.filter(Boolean))).slice(0, 30);
+  const lists = await Promise.all(ids.map((id) => findConflictList(id, startIso, endIso, excludeId)));
+  return { ok: true, data: lists.flat() };
 }
 
 function isOverlapError(error: { code?: string; message?: string } | null): boolean {
@@ -72,8 +90,8 @@ export async function createReservation(input: ReservationInput): Promise<Action
   const supabase = await getServerSupabase();
 
   // 친절한 메시지를 위해 먼저 조회하고, 최종 차단은 DB EXCLUDE 제약이 맡는다
-  const pre = await supabase.rpc("find_conflicts", { p_room_id: input.room_id, p_start: input.start_at, p_end: input.end_at, p_exclude_id: null });
-  if ((pre.data ?? []).length > 0) return { ok: false, conflict: true, error: await conflictMessage(input.room_id, input.start_at, input.end_at) };
+  const pre = await findConflictList(input.room_id, input.start_at, input.end_at);
+  if (pre.length > 0) return conflictResult(pre);
 
   const { data, error } = await supabase
     .from("reservations")
@@ -81,7 +99,7 @@ export async function createReservation(input: ReservationInput): Promise<Action
     .select("id")
     .single();
   if (error) {
-    if (isOverlapError(error)) return { ok: false, conflict: true, error: await conflictMessage(input.room_id, input.start_at, input.end_at) };
+    if (isOverlapError(error)) return conflictResult(await findConflictList(input.room_id, input.start_at, input.end_at));
     return { ok: false, error: error.message };
   }
   queueSync([toMonthKey(input.start_at)]);
@@ -126,12 +144,12 @@ export async function updateReservation(
     return { ok: true, data: { count: (data as number) ?? 0 } };
   }
 
-  const pre = await supabase.rpc("find_conflicts", { p_room_id: input.room_id, p_start: input.start_at, p_end: input.end_at, p_exclude_id: id });
-  if ((pre.data ?? []).length > 0) return { ok: false, conflict: true, error: await conflictMessage(input.room_id, input.start_at, input.end_at, id) };
+  const pre = await findConflictList(input.room_id, input.start_at, input.end_at, id);
+  if (pre.length > 0) return conflictResult(pre);
 
   const { error } = await supabase.from("reservations").update({ ...input, title: input.title.trim() }).eq("id", id);
   if (error) {
-    if (isOverlapError(error)) return { ok: false, conflict: true, error: await conflictMessage(input.room_id, input.start_at, input.end_at, id) };
+    if (isOverlapError(error)) return conflictResult(await findConflictList(input.room_id, input.start_at, input.end_at, id));
     return { ok: false, error: error.message };
   }
   queueSync([toMonthKey(before.start_at), toMonthKey(input.start_at)]);
@@ -172,12 +190,11 @@ export async function createReservationsMulti(input: ReservationInput, roomIds: 
   }
   const supabase = await getServerSupabase();
 
-  const messages: string[] = [];
-  for (const roomId of ids) {
-    const pre = await supabase.rpc("find_conflicts", { p_room_id: roomId, p_start: input.start_at, p_end: input.end_at, p_exclude_id: null });
-    if ((pre.data ?? []).length > 0) messages.push(await conflictMessage(roomId, input.start_at, input.end_at));
+  const pre = (await Promise.all(ids.map((roomId) => findConflictList(roomId, input.start_at, input.end_at)))).flat();
+  if (pre.length > 0) {
+    const r = conflictResult(pre);
+    return { ...r, error: `${pre.map(conflictText).join(" ")} 겹치는 장소를 빼고 다시 등록해 주세요.` };
   }
-  if (messages.length > 0) return { ok: false, conflict: true, error: `${messages.join(" ")} 겹치는 장소를 빼고 다시 등록해 주세요.` };
 
   // 한 번의 insert 는 한 트랜잭션 — 그 사이 누가 먼저 잡으면 전부 취소된다
   const { data, error } = await supabase
@@ -185,7 +202,10 @@ export async function createReservationsMulti(input: ReservationInput, roomIds: 
     .insert(ids.map((roomId) => ({ ...input, room_id: roomId, title: input.title.trim() })))
     .select("id");
   if (error) {
-    if (isOverlapError(error)) return { ok: false, conflict: true, error: "방금 다른 예약이 먼저 등록되어 겹치는 장소가 생겼습니다. 다시 확인해 주세요." };
+    if (isOverlapError(error)) {
+      const now = (await Promise.all(ids.map((roomId) => findConflictList(roomId, input.start_at, input.end_at)))).flat();
+      return conflictResult(now, "방금 다른 예약이 먼저 등록되어 겹치는 장소가 생겼습니다. 다시 확인해 주세요.");
+    }
     return { ok: false, error: error.message };
   }
   queueSync([toMonthKey(input.start_at)]);
