@@ -9,7 +9,7 @@ import {
   type ReservationInput,
 } from "@/lib/actions/reservations";
 import { FLOOR_COLORS } from "@/lib/floor-colors";
-import { SLOT_LABELS, countWeeklyUntil, fmtDateKo, fmtRange, fmtTime, seoulToUtc, toDateKey } from "@/lib/time";
+import { countWeeklyUntil, fmtDateKo, fmtRange, fmtTime, seoulToUtc, toDateKey } from "@/lib/time";
 import { FLOOR_LABEL, type Reservation, type Room } from "@/lib/types";
 
 export interface FormInitial {
@@ -19,8 +19,26 @@ export interface FormInitial {
   endTime?: string;
 }
 
-const START_TIMES = SLOT_LABELS; // 00:00 ~ 23:30
-const END_TIMES = [...SLOT_LABELS.slice(1), "24:00"]; // 00:30 ~ 24:00
+const HOURS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0"));
+const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0")); // 5분 단위
+
+/** 시·분을 따로 고르는 시각 선택 (5분 단위). allow24 면 종료용으로 24:00 까지 */
+function TimeSelect({ value, onChange, allow24 }: { value: string; onChange: (v: string) => void; allow24?: boolean }) {
+  const [h, m] = value.split(":");
+  const hours = allow24 ? [...HOURS, "24"] : HOURS;
+  const minutes = h === "24" ? ["00"] : MINUTES;
+  return (
+    <div className="flex shrink-0 items-center gap-0.5">
+      <select className="input w-[4.5rem]!" value={h} aria-label="시" onChange={(e) => onChange(`${e.target.value}:${e.target.value === "24" ? "00" : m}`)}>
+        {hours.map((x) => <option key={x} value={x}>{x}시</option>)}
+      </select>
+      <select className="input w-[4.5rem]!" value={m} aria-label="분" onChange={(e) => onChange(`${h}:${e.target.value}`)}>
+        {!minutes.includes(m) && <option value={m}>{m}분</option>}
+        {minutes.map((x) => <option key={x} value={x}>{x}분</option>)}
+      </select>
+    </div>
+  );
+}
 
 function splitEnd(iso: string): { date: string; time: string } {
   const d = new Date(iso);
@@ -170,21 +188,15 @@ export default function ReservationForm({
           <div>
             <label className="label">시작 일시 *</label>
             <div className="flex gap-1">
-              <input className="input" type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); if (endDate < e.target.value) setEndDate(e.target.value); }} />
-              <select className="input w-28!" value={startTime} onChange={(e) => setStartTime(e.target.value)}>
-                {!START_TIMES.includes(startTime) && <option value={startTime}>{startTime}</option>}
-                {START_TIMES.map((t) => <option key={t}>{t}</option>)}
-              </select>
+              <input className="input min-w-0" type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); if (endDate < e.target.value) setEndDate(e.target.value); }} />
+              <TimeSelect value={startTime} onChange={setStartTime} />
             </div>
           </div>
           <div>
             <label className="label">종료 일시 * <span className="font-normal">(다음날 가능)</span></label>
             <div className="flex gap-1">
-              <input className="input" type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />
-              <select className="input w-28!" value={endTime} onChange={(e) => setEndTime(e.target.value)}>
-                {!END_TIMES.includes(endTime) && <option value={endTime}>{endTime}</option>}
-                {END_TIMES.map((t) => <option key={t}>{t}</option>)}
-              </select>
+              <input className="input min-w-0" type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />
+              <TimeSelect value={endTime} onChange={setEndTime} allow24 />
             </div>
             {startIso && endIso && endIso > startIso && (
               <p className="mt-1 text-sm text-muted">{fmtDateKo(startIso)} {fmtRange(startIso, endIso)}</p>

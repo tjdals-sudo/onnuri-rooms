@@ -1,5 +1,5 @@
 "use client";
-import { daysOfMonth, fmtMonthKo, todayKey, weekOf } from "@/lib/time";
+import { daysOfMonth, todayKey, weekOf } from "@/lib/time";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -22,11 +22,39 @@ export default function AdminCalendar({
   while (cells.length % 7) cells.push(null);
   const today = todayKey();
 
+  // 년/월 바로 고르기: 선택한 달과의 차이만큼 onMonthChange 로 이동
+  const [y, m] = monthKey.split("-").map(Number);
+  const thisYear = Number(today.slice(0, 4));
+  const years = Array.from({ length: 7 }, (_, i) => thisYear - 3 + i);
+  if (!years.includes(y)) years.push(y);
+  years.sort((a, b) => a - b);
+  const jump = (ny: number, nm: number) => {
+    const delta = ny * 12 + nm - (y * 12 + m);
+    if (delta) onMonthChange(delta);
+  };
+
   return (
     <div className="card p-3">
       <div className="mb-2 flex items-center justify-between">
         <button className="btn btn-sm" onClick={() => onMonthChange(-1)} aria-label="이전 달">◀</button>
-        <h2 className="text-lg font-bold">{fmtMonthKo(monthKey)}</h2>
+        <div className="flex items-center gap-1 text-lg font-bold">
+          <select
+            className="cursor-pointer rounded-md border border-line bg-surface px-1 py-0.5 hover:bg-accent-soft"
+            value={y}
+            onChange={(e) => jump(Number(e.target.value), m)}
+            aria-label="년"
+          >
+            {years.map((x) => <option key={x} value={x}>{x}년</option>)}
+          </select>
+          <select
+            className="cursor-pointer rounded-md border border-line bg-surface px-1 py-0.5 hover:bg-accent-soft"
+            value={m}
+            onChange={(e) => jump(y, Number(e.target.value))}
+            aria-label="월"
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((x) => <option key={x} value={x}>{x}월</option>)}
+          </select>
+        </div>
         <button className="btn btn-sm" onClick={() => onMonthChange(1)} aria-label="다음 달">▶</button>
       </div>
       <div className="grid grid-cols-7 text-center text-xs font-semibold text-muted">
