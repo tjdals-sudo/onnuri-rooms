@@ -324,7 +324,7 @@ export default function HomeClient({ initialRooms = null }: { initialRooms?: Roo
       </main>
 
       <footer className="border-t border-line px-4 py-4 text-center text-sm text-muted print:hidden">
-        인천 온누리교회 · 장소예약 v1.0.2
+        인천 온누리교회 · 장소예약 v1.0.3
       </footer>
     </div>
   );
