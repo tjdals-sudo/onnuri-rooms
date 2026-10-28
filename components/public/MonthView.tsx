@@ -39,7 +39,7 @@ export default function MonthView({
 
   return (
     <div className="card overflow-hidden print:rounded-none print:shadow-none">
-      <div className="grid grid-cols-7 border-b border-line bg-[#e9f0f9] text-center text-sm font-semibold text-muted">
+      <div className="grid grid-cols-7 border-b border-line bg-[#eceef3] text-center text-sm font-semibold text-muted">
         {WEEKDAYS.map((w, i) => (
           <div key={w} className={`py-2 print:py-1 ${i === 0 ? "text-[#b42318]" : i === 6 ? "text-[#2c6fb0]" : ""}`}>
             {w}
@@ -50,7 +50,7 @@ export default function MonthView({
         {cells.map((d, i) => {
           if (!d)
             return (
-              <div key={`e${i}`} className="min-h-[88px] border-b border-r border-line/60 bg-[#f4f8fc] md:min-h-[120px] print:min-h-[44px]" />
+              <div key={`e${i}`} className="min-h-[88px] border-b border-r border-line/60 bg-[#f5f6f9] md:min-h-[120px] print:min-h-[44px]" />
             );
           const items = (byDay.get(d) ?? []).sort((a, b) => a.start_at.localeCompare(b.start_at));
           const shown = showAll ? items : items.slice(0, PREVIEW);

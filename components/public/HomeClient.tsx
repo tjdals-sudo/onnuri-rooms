@@ -150,7 +150,7 @@ export default function HomeClient({ initialRooms = null }: { initialRooms?: Roo
           <div className="flex items-center gap-3">
             <Image src="/logo.jpg" alt="온누리교회" width={40} height={40} className="h-10 w-10 rounded-lg" priority />
             <div>
-              <h1 className="text-lg font-bold leading-tight md:text-xl">인천 온누리교회 장소 사용 현황</h1>
+              <h1 className="font-title text-lg leading-tight md:text-xl">인천 온누리교회 장소 사용 현황</h1>
               <p className="hidden text-sm text-muted md:block">누구나 실시간으로 확인할 수 있어요</p>
             </div>
           </div>
@@ -162,15 +162,15 @@ export default function HomeClient({ initialRooms = null }: { initialRooms?: Roo
         <div className="mx-auto flex max-w-[1600px] flex-col gap-3 px-4 pb-3">
           {/* 날짜 이동 + 보기 전환 */}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-1">
-              <button className="btn btn-sm" onClick={() => move(-1)} aria-label="이전">
+            <div className="flex items-center gap-1.5">
+              <button className="btn h-10 w-10 !p-0 text-sm text-muted" onClick={() => move(-1)} aria-label="이전">
                 ◀
               </button>
-              <button className="btn btn-sm" onClick={() => setParam({ date: null })}>
-                오늘
-              </button>
-              <button className="btn btn-sm" onClick={() => move(1)} aria-label="다음">
+              <button className="btn h-10 w-10 !p-0 text-sm text-muted" onClick={() => move(1)} aria-label="다음">
                 ▶
+              </button>
+              <button className="px-2 py-2 text-sm font-semibold text-accent hover:underline" onClick={() => setParam({ date: null })}>
+                오늘
               </button>
               <input
                 type="date"
@@ -180,14 +180,14 @@ export default function HomeClient({ initialRooms = null }: { initialRooms?: Roo
                 aria-label="날짜 선택"
               />
             </div>
-            <h2 className="order-last w-full text-lg font-semibold md:order-none md:w-auto">{title}</h2>
-            <div role="tablist" className="flex overflow-hidden rounded-lg border border-line bg-surface">
+            <h2 className="font-title order-first w-full text-3xl leading-tight tracking-tight md:order-none md:w-auto md:text-4xl">{title}</h2>
+            <div role="tablist" className="flex rounded-full bg-foreground/5 p-1">
               {(["day", "week", "month"] as View[]).map((v) => (
                 <button
                   key={v}
                   role="tab"
                   aria-selected={view === v}
-                  className={`px-4 py-2 text-base font-medium ${view === v ? "bg-accent text-white" : "hover:bg-accent-soft"}`}
+                  className={`rounded-full px-5 py-1.5 text-base font-medium ${view === v ? "bg-surface font-semibold text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
                   onClick={() => setParam({ view: v === "day" ? null : v })}
                 >
                   {v === "day" ? "일" : v === "week" ? "주" : "월"}
@@ -197,14 +197,14 @@ export default function HomeClient({ initialRooms = null }: { initialRooms?: Roo
           </div>
 
           {/* 층 필터 + 검색 */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button className={`chip ${!floor ? "chip-active" : ""}`} onClick={() => setParam({ floor: null })}>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-line">
+            <button className={`tab ${!floor ? "tab-active" : ""}`} onClick={() => setParam({ floor: null })}>
               전체
             </button>
             {FLOORS.map((f) => (
               <button
                 key={f}
-                className={`chip ${floor === f ? "chip-active" : ""}`}
+                className={`tab ${floor === f ? "tab-active" : ""}`}
                 onClick={() => setParam({ floor: floor === f ? null : f })}
               >
                 {FLOOR_SHORT[f]}
@@ -212,7 +212,7 @@ export default function HomeClient({ initialRooms = null }: { initialRooms?: Roo
             ))}
             <input
               type="search"
-              className="input ml-auto w-full md:w-56"
+              className="input mb-2 ml-auto w-full !rounded-full !border-transparent bg-foreground/5 !px-4 md:w-60"
               placeholder="장소·행사명 검색 (예: 소망홀)"
               value={query}
               onChange={(e) => setQuery(e.target.value)}

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { FLOOR_COLORS } from "@/lib/floor-colors";
-import { clipToDay, fmtRange, isOngoing, nowMinutesOfDay, todayKey } from "@/lib/time";
+import { clipToDay, fmtRange, fmtTime, isOngoing, nowMinutesOfDay, todayKey } from "@/lib/time";
 import { FLOORS, FLOOR_LABEL, type PublicReservation, type Room } from "@/lib/types";
 import ReservationPopover from "./ReservationPopover";
 
@@ -56,7 +56,7 @@ export default function DayGrid({
           {/* 시간 헤더 */}
           <div className="sticky top-0 z-20 flex border-b border-line bg-surface">
             <div
-              className="sticky left-0 z-30 shrink-0 border-r border-line bg-surface px-3 py-2 text-sm font-semibold text-muted"
+              className="sticky left-0 z-30 shrink-0 bg-surface px-5 py-2 text-sm text-muted"
               style={{ width: LABEL_W }}
             >
               장소
@@ -80,12 +80,14 @@ export default function DayGrid({
             const c = FLOOR_COLORS[floor];
             return (
               <div key={floor}>
-                <div className="flex border-b border-line" style={{ background: c.soft }}>
+                <div className="flex border-b border-line bg-background">
                   <div
-                    className="sticky left-0 z-10 shrink-0 px-3 py-1 text-sm font-bold"
-                    style={{ width: LABEL_W, color: c.text, background: c.soft }}
+                    className="sticky left-0 z-10 flex shrink-0 items-center gap-2.5 bg-background px-5 py-2.5 text-sm font-bold"
+                    style={{ width: LABEL_W }}
                   >
+                    <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: c.bg }} aria-hidden />
                     {FLOOR_LABEL[floor]}
+                    <span className="font-normal text-muted">{floorRooms.length}곳</span>
                   </div>
                 </div>
                 {floorRooms.map((room) => {
@@ -93,10 +95,10 @@ export default function DayGrid({
                   return (
                     <div key={room.id} className="flex border-b border-line" style={{ height: ROW_H }}>
                       <div
-                        className="sticky left-0 z-10 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"
+                        className="sticky left-0 z-10 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-5"
                         style={{ width: LABEL_W }}
                       >
-                        <span className="truncate font-semibold">{room.name}</span>
+                        <span className="truncate text-[15.5px] font-semibold">{room.name}</span>
                         <span className="truncate text-xs text-muted">
                           {room.capacity_text} · {room.seating_type}
                         </span>
@@ -125,22 +127,16 @@ export default function DayGrid({
                                 const rect = e.currentTarget.getBoundingClientRect();
                                 setPicked((p) => (p?.r.id === r.id ? null : { r, rect }));
                               }}
-                              className="absolute top-1 flex h-[calc(100%-8px)] cursor-pointer items-center gap-1 overflow-hidden px-2 text-sm text-white shadow-sm"
+                              className="absolute top-2 flex h-[calc(100%-16px)] cursor-pointer items-center gap-2 overflow-hidden px-3 text-sm text-white transition hover:brightness-110"
                               style={{
                                 left: left + 1,
                                 width,
                                 background: c.bg,
-                                borderRadius: `${clip.continuesBefore ? 0 : 8}px ${clip.continuesAfter ? 0 : 8}px ${clip.continuesAfter ? 0 : 8}px ${clip.continuesBefore ? 0 : 8}px`,
-                                outline: ongoing ? "3px solid #d93025" : undefined,
-                                outlineOffset: -3,
+                                borderRadius: `${clip.continuesBefore ? 0 : 9}px ${clip.continuesAfter ? 0 : 9}px ${clip.continuesAfter ? 0 : 9}px ${clip.continuesBefore ? 0 : 9}px`,
                               }}
                               title={`${FLOOR_LABEL[r.floor]} ${r.room_name} · ${fmtRange(r.start_at, r.end_at)} · ${r.title}${r.department ? ` · ${r.department}` : ""}`}
                             >
-                              {ongoing && (
-                                <span className="shrink-0 rounded bg-white/90 px-1 text-[11px] font-bold text-[#b42318]">
-                                  사용 중
-                                </span>
-                              )}
+                              {ongoing && <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-white" aria-label="사용 중" />}
                               <span className="truncate font-semibold">{r.title}</span>
                               {width > 160 && <span className="truncate opacity-90">· {r.department}</span>}
                               {width > 260 && <span className="shrink-0 opacity-90">· {fmtRange(r.start_at, r.end_at)}</span>}
@@ -158,12 +154,12 @@ export default function DayGrid({
           {/* 현재 시각 선 */}
           {isToday && (
             <div
-              className="pointer-events-none absolute top-0 z-20 h-full w-0.5 bg-[#d93025]"
+              className="pointer-events-none absolute top-0 z-20 h-full w-px bg-brass"
               style={{ left: LABEL_W + nowMin * PX_PER_MIN }}
               aria-hidden
             >
-              <span className="absolute -left-5 top-9 whitespace-nowrap rounded bg-[#d93025] px-1 text-[11px] font-bold text-white">
-                지금
+              <span className="absolute top-12 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-brass px-2.5 py-0.5 text-xs font-bold text-white">
+                지금 {fmtTime(now)}
               </span>
             </div>
           )}

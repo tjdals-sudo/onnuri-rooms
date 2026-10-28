@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* 제목용 글꼴: 경기천년제목 Medium (큰 글자에만 사용) */
+@font-face {
+  font-family: "GyeonggiTitle";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/GyeonggiTitleM.woff") format("woff");
+  font-weight: 400;
+  font-display: swap;
+}
+
 /* print: 스타일을 인쇄할 때와, 인쇄 직전 크기를 잴 때(lib/print-fit.ts) 모두 적용 */
 @custom-variant print {
   @media print {
@@ -11,13 +19,14 @@
 }
 
 :root {
-  --background: #eef4fb;      /* 연한 파랑 */
+  --background: #f1f2f5;      /* 차분한 회청색 */
   --surface: #ffffff;
-  --foreground: #2b2520;
-  --muted: #6b625a;
-  --line: #d6e0ee;
+  --foreground: #172036;
+  --muted: #667086;
+  --line: #e2e5ec;
   --accent: #1f3a6e;          /* 남색 */
-  --accent-soft: #e3ecf8;
+  --accent-soft: #e8edf6;
+  --brass: #a9873f;           /* "지금" 표시 */
   --danger: #b42318;
   --ok: #1f7a4d;
 }
@@ -32,6 +41,8 @@
   --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger);
   --color-ok: var(--ok);
+  --color-brass: var(--brass);
+  --font-title: "GyeonggiTitle", "Pretendard Variable", Pretendard, sans-serif;
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
 }
 
@@ -54,37 +65,43 @@ body {
 
 /* 공통 컨트롤 */
 .btn {
-  @apply inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-line bg-surface px-3 py-2 text-base font-medium text-foreground shadow-sm transition hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-full border border-line bg-surface px-4 py-2 text-base font-medium text-foreground transition hover:border-foreground disabled:cursor-not-allowed disabled:opacity-50;
 }
 .btn-primary {
-  @apply border-accent bg-accent text-white hover:bg-[#162c55];
+  @apply border-accent bg-accent text-white hover:border-[#162c55] hover:bg-[#162c55];
 }
 .btn-danger {
   @apply border-danger bg-danger text-white hover:bg-[#8f1b12];
 }
 .btn-sm {
-  @apply px-2.5 py-1.5 text-sm;
+  @apply px-3.5 py-1.5 text-sm;
 }
 .chip {
-  @apply inline-flex items-center rounded-full border border-line bg-surface px-3 py-1.5 text-base font-medium hover:bg-accent-soft;
+  @apply inline-flex items-center rounded-full border border-line bg-surface px-3.5 py-1.5 text-base font-medium hover:border-foreground;
 }
 .chip-active {
   @apply border-accent bg-accent text-white hover:bg-accent;
 }
+.tab {
+  @apply -mb-px border-b-2 border-transparent py-2.5 text-base font-medium whitespace-nowrap text-muted hover:text-foreground;
+}
+.tab-active {
+  @apply border-foreground font-bold text-foreground;
+}
 .input {
-  @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-base text-foreground placeholder:text-muted focus:border-accent;
+  @apply w-full rounded-xl border border-line bg-surface px-3.5 py-2 text-base text-foreground placeholder:text-muted focus:border-accent;
 }
 .label {
   @apply mb-1 block text-sm font-semibold text-muted;
 }
 .card {
-  @apply rounded-xl border border-line bg-surface shadow-sm;
+  @apply rounded-2xl border border-line bg-surface;
 }
 .table {
   @apply w-full border-collapse text-base;
 }
 .table th {
-  @apply border-b border-line bg-[#e9f0f9] px-3 py-2 text-left text-sm font-semibold text-muted;
+  @apply border-b border-line bg-[#eceef3] px-3 py-2 text-left text-sm font-semibold text-muted;
 }
 .table td {
   @apply border-b border-line px-3 py-2 align-top;
@@ -92,7 +109,7 @@ body {
 
 /* 스켈레톤 */
 .skeleton {
-  @apply animate-pulse rounded-md bg-[#dde6f2];
+  @apply animate-pulse rounded-md bg-[#e2e5ec];
 }
 
 /* 모바일 터치 영역 */

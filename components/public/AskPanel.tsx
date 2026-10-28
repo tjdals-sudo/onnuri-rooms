@@ -186,23 +186,23 @@ export default function AskPanel({ rooms, onShowDate }: { rooms: Room[]; onShowD
   const today = todayKey();
 
   return (
-    <section className="card mb-4 p-4" aria-label="빈 장소 물어보기">
+    <section className="mb-6" aria-label="빈 장소 물어보기">
       <form
-        className="flex gap-2"
+        className="flex items-center gap-2 rounded-full border border-line bg-surface p-1.5 pl-5 focus-within:border-foreground"
         onSubmit={(e) => {
           e.preventDefault();
           void ask(question);
         }}
       >
         <input
-          className="input flex-1"
+          className="min-w-0 flex-1 bg-transparent py-2 text-base outline-none placeholder:text-muted"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="물어보세요 — 예: 내일 오후 3시 소망홀 비었어?"
           aria-label="빈 장소 질문"
           enterKeyHint="search"
         />
-        <button type="submit" className="btn btn-primary whitespace-nowrap" disabled={busy}>
+        <button type="submit" className="btn btn-primary whitespace-nowrap px-6" disabled={busy}>
           {busy ? "찾는 중…" : "물어보기"}
         </button>
       </form>
