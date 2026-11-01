@@ -13,15 +13,32 @@ export function fitPrintArea() {
   if (!area) return;
 
   const mm = mmToPx();
+  const pageH = PAGE_H_MM * mm;
+  // zoom 배율로 줄였을 때 종이 위 높이. 줄이면 폭이 1/zoom 만큼 넓어져 줄바꿈이 줄어든다
+  const heightAt = (zoom: number) => {
+    area.style.width = `${(PAGE_W_MM * mm) / zoom}px`;
+    return area.scrollHeight * zoom;
+  };
+
   root.classList.add("print-measure");
-  area.style.width = `${PAGE_W_MM * mm}px`;
-  const h = area.scrollHeight;
+  let zoom = 1;
+  const h = heightAt(1);
+  if (h > pageH) {
+    // 원래 폭 기준 배율이면 항상 들어간다. 다만 넓어진 폭에서 줄바꿈이 없어져
+    // 종이 아래가 크게 비고 글씨만 작아지므로, 한 장에 들어가는 가장 큰 배율을 찾는다
+    let lo = pageH / h;
+    let hi = 1;
+    for (let i = 0; i < 10; i++) {
+      const mid = (lo + hi) / 2;
+      if (heightAt(mid) <= pageH) lo = mid;
+      else hi = mid;
+    }
+    zoom = lo;
+  }
   area.style.width = "";
   root.classList.remove("print-measure");
 
-  // 줄인 만큼 폭이 넓어져 줄바꿈이 줄어드니, 이 배율이면 항상 한 장 안에 들어간다
-  const zoom = Math.min(1, (PAGE_H_MM * mm) / h);
-  if (zoom < 1) root.style.setProperty("--print-zoom", zoom.toFixed(3));
+  if (zoom < 1) root.style.setProperty("--print-zoom", (Math.floor(zoom * 1000) / 1000).toFixed(3));
 }
 
 function mmToPx() {
