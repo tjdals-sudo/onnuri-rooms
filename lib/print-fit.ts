@@ -4,7 +4,8 @@
  * 높이를 재고, 넘치면 --print-zoom 으로 줄인다. 실제 축소는 @media print 에서만 적용된다.
  */
 const PAGE_W_MM = 297 - 20; // A4 가로 - 여백 10mm × 2 (globals.css 의 @page 와 맞출 것)
-const PAGE_H_MM = 210 - 20 - 3; // 반올림 오차로 두 장이 되지 않게 3mm 여유
+// 화면에서 잰 높이와 실제 인쇄 높이는 브라우저·글꼴에 따라 조금씩 달라서, 두 장이 되지 않게 12mm 여유
+const PAGE_H_MM = 210 - 20 - 12;
 
 export function fitPrintArea() {
   const root = document.documentElement;
