@@ -14,10 +14,12 @@ export function fitPrintArea() {
 
   const mm = mmToPx();
   const pageH = PAGE_H_MM * mm;
-  // zoom 배율로 줄였을 때 종이 위 높이. 줄이면 폭이 1/zoom 만큼 넓어져 줄바꿈이 줄어든다
+  // zoom 배율로 줄였을 때 종이 위 높이. 줄이면 폭이 1/zoom 만큼 넓어져 줄바꿈이 줄어든다.
+  // 작은 글씨는 줄바꿈이 배율대로 줄지 않으니, 인쇄와 똑같이 zoom 을 걸어 놓고 잰다
   const heightAt = (zoom: number) => {
+    area.style.zoom = String(zoom);
     area.style.width = `${(PAGE_W_MM * mm) / zoom}px`;
-    return area.scrollHeight * zoom;
+    return area.getBoundingClientRect().height;
   };
 
   root.classList.add("print-measure");
@@ -35,6 +37,7 @@ export function fitPrintArea() {
     }
     zoom = lo;
   }
+  area.style.zoom = "";
   area.style.width = "";
   root.classList.remove("print-measure");
 
