@@ -105,8 +105,8 @@ export default function ReservationManager({
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4">
           <AdminCalendar monthKey={monthKey} counts={counts} selected={dateKey} onSelect={selectDate} onMonthChange={gotoMonth} />
           <div className="card p-3">
             <h2 className="mb-2 text-base font-bold">① 장소 선택</h2>
@@ -114,7 +114,7 @@ export default function ReservationManager({
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div className="card p-4">
             <h2 className="mb-1 text-lg font-bold">② 시간 선택 · {fmtDateKeyKo(dateKey)}</h2>
             {selectedRoom ? (
